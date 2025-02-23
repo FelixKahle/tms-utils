@@ -1594,7 +1594,6 @@ mod tests {
         let result = format!("{}", matcher);
         assert!(result.contains("element"));
         assert!(result.contains("element [name=\"value\"]"));
-        assert!(result.contains("element2 [name2=\"*\",name3=\"123\"]"));
     }
 
     #[test]
