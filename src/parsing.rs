@@ -479,6 +479,324 @@ impl Default for XmlAttributeMatcher<'_> {
     }
 }
 
+/// An XML element matcher.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct XmlElementMatcher<'a> {
+    /// The name of the element to match.
+    name: Option<&'a str>,
+
+    /// The required attributes of the element.
+    required_attributes: Option<HashSet<XmlAttributeMatcher<'a>>>,
+
+    /// The forbidden attributes of the element.
+    forbidden_attributes: Option<HashSet<XmlAttributeMatcher<'a>>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum XmlElementMatcherParseError {
+    /// The element name is missing.
+    MissingElementName,
+
+    /// The attribute list is missing the opening bracket.
+    MissingAttributeListStart,
+
+    /// The attribute list is missing the closing bracket.
+    MissingAttributeListEnd,
+
+    /// An error occurred while parsing an XML attribute matcher.
+    XmlAttributeMatcherParseError(XmlAttributeMatcherParseError),
+}
+
+impl Display for XmlElementMatcherParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            XmlElementMatcherParseError::MissingElementName => write!(f, "Missing element name"),
+            XmlElementMatcherParseError::MissingAttributeListStart => {
+                write!(f, "Missing attribute list start (expected '[')")
+            }
+            XmlElementMatcherParseError::MissingAttributeListEnd => {
+                write!(f, "Missing attribute list end (expected ']')")
+            }
+            XmlElementMatcherParseError::XmlAttributeMatcherParseError(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl std::error::Error for XmlElementMatcherParseError {}
+
+impl<'a> XmlElementMatcher<'a> {
+    /// Create a new XML element matcher.
+    ///
+    /// # Arguments
+    /// - name: The name of the element to match.
+    /// - required_attributes: The required attributes of the element.
+    /// - forbidden_attributes: The forbidden attributes of the element.
+    ///
+    /// # Returns
+    /// The new XML element matcher.
+    pub fn new(
+        name: Option<&'a str>,
+        required_attributes: Option<HashSet<XmlAttributeMatcher<'a>>>,
+        forbidden_attributes: Option<HashSet<XmlAttributeMatcher<'a>>>,
+    ) -> Self {
+        XmlElementMatcher {
+            name,
+            required_attributes,
+            forbidden_attributes,
+        }
+    }
+
+    /// Parses an XML element matcher from a string.
+    ///
+    /// # Format
+    /// The expected format for an element matcher string follows this structure:
+    ///
+    /// ```
+    /// element_name [attribute_matchers]
+    /// ```
+    ///
+    /// - `element_name` (optional): The name of the XML element to match.
+    ///   - Use `*` to match any element.
+    /// - `[attribute_matchers]`: A list of attribute matchers, enclosed in square brackets.
+    ///   - Use `attr="value"` to require a specific attribute-value pair.
+    ///   - Use `!attr="value"` to forbid a specific attribute-value pair.
+    ///   - Use `*` to allow any attributes.
+    ///   - Use `[]` to require that the element has no attributes.
+    ///
+    /// # Arguments
+    /// - `string` - A string slice representing the element matcher in the expected format.
+    ///
+    /// # Returns
+    /// Returns `Ok(XmlElementMatcher)` if parsing is successful, otherwise an `Err(XmlElementMatcherParseError)`.
+    ///
+    /// # Examples
+    ///
+    /// ## Matching a specific element with required attributes
+    /// ```rust
+    /// let matcher = XmlElementMatcher::from_str("book [id='123',category='fiction']").unwrap();
+    /// assert_eq!(matcher.name(), Some("book"));
+    /// ```
+    ///
+    /// ## Matching any element with specific attributes
+    /// ```rust
+    /// let matcher = XmlElementMatcher::from_str("* [type='error']").unwrap();
+    /// assert_eq!(matcher.name(), None);
+    /// ```
+    ///
+    /// ## Matching an element with no attributes
+    /// ```rust
+    /// let matcher = XmlElementMatcher::from_str("note []").unwrap();
+    /// assert!(matcher.required_attributes().unwrap().is_empty());
+    /// ```
+    ///
+    /// ## Matching any element with any attributes
+    /// ```rust
+    /// let matcher = XmlElementMatcher::from_str("* [*]").unwrap();
+    /// assert_eq!(matcher.name(), None);
+    /// assert!(matcher.required_attributes().is_none());
+    /// ```
+    ///
+    /// ## Matching with forbidden attributes
+    /// ```rust
+    /// let matcher = XmlElementMatcher::from_str("user [role='admin',!status='banned']").unwrap();
+    /// assert_eq!(matcher.name(), Some("user"));
+    /// ```
+    ///
+    /// # Errors
+    /// This function returns an error if the input string is malformed:
+    /// - [`XmlElementMatcherParseError::MissingAttributeListStart`] – The `[` character is missing.
+    /// - [`XmlElementMatcherParseError::MissingAttributeListEnd`] – The `]` character is missing.
+    /// - [`XmlElementMatcherParseError::MissingElementName`] – The element name is empty.
+    /// - [`XmlElementMatcherParseError::XmlAttributeMatcherParseError`] – Error while parsing attribute matchers.
+    ///
+    /// # Notes
+    /// - Attributes must be separated by **commas (`','`)**.
+    /// - The attribute values must be enclosed in **single (`'`) or double (`"`) quotes**.
+    pub fn from_str(string: &'a str) -> Result<Self, XmlElementMatcherParseError> {
+        // First seperate the element name from the attribute list
+        let (element_name, attribute_list) = match string.split_once('[') {
+            Some((name, attributes)) => (name, attributes),
+            None => return Err(XmlElementMatcherParseError::MissingAttributeListStart),
+        };
+
+        // Parse the element name
+        let name = match element_name.trim() {
+            "*" => None,
+            "" => return Err(XmlElementMatcherParseError::MissingElementName),
+            name => Some(name),
+        };
+
+        let attribute_list = attribute_list
+            .trim()
+            .strip_suffix(']')
+            .ok_or(XmlElementMatcherParseError::MissingAttributeListEnd)?
+            .trim();
+
+        let (required, forbidden) = match attribute_list {
+            "*" => (None, None),                                // Match any attributes
+            "" => (Some(HashSet::new()), Some(HashSet::new())), // Require no attributes
+            _ => attribute_list
+                .split(',')
+                .map(str::trim)
+                .try_fold(
+                    (HashSet::new(), HashSet::new()),
+                    |(mut req, mut forb), attr| {
+                        if let Some(attr) = attr.strip_prefix('!') {
+                            forb.insert(XmlAttributeMatcher::from_str(attr).map_err(
+                                XmlElementMatcherParseError::XmlAttributeMatcherParseError,
+                            )?);
+                        } else {
+                            req.insert(XmlAttributeMatcher::from_str(attr).map_err(
+                                XmlElementMatcherParseError::XmlAttributeMatcherParseError,
+                            )?);
+                        }
+                        Ok((req, forb))
+                    },
+                )
+                .map(|(req, forb)| (Some(req), Some(forb)))?,
+        };
+
+        Ok(XmlElementMatcher::new(name, required, forbidden))
+    }
+
+    /// Get the name of the element.
+    ///
+    /// # Returns
+    /// The name of the element.
+    pub fn name(&self) -> Option<&str> {
+        self.name
+    }
+
+    /// Get the required attributes of the element.
+    ///
+    /// # Returns
+    /// The required attributes of the element.
+    pub fn required_attributes(&self) -> Option<&HashSet<XmlAttributeMatcher<'a>>> {
+        self.required_attributes.as_ref()
+    }
+
+    /// Get the forbidden attributes of the element.
+    ///
+    /// # Returns
+    /// The forbidden attributes of the element.
+    pub fn forbidden_attributes(&self) -> Option<&HashSet<XmlAttributeMatcher<'a>>> {
+        self.forbidden_attributes.as_ref()
+    }
+
+    /// Get the number of required attributes.
+    ///
+    /// # Returns
+    /// The number of required attributes or None if there are no required attributes.
+    pub fn required_attributes_count(&self) -> Option<usize> {
+        self.required_attributes.as_ref().map(|attrs| attrs.len())
+    }
+
+    /// Get the number of forbidden attributes.
+    ///
+    /// # Returns
+    /// The number of forbidden attributes or None if there are no forbidden attributes.
+    pub fn forbidden_attributes_count(&self) -> Option<usize> {
+        self.forbidden_attributes.as_ref().map(|attrs| attrs.len())
+    }
+
+    /// Check if the element matches the matcher.
+    ///
+    /// # Arguments
+    /// - element: The element to check.
+    ///
+    /// # Returns
+    /// True if the element matches the matcher, false otherwise.
+    pub fn matches(&self, element: &XmlElement) -> bool {
+        if let Some(name) = self.name {
+            if element.name() != name {
+                return false;
+            }
+        }
+
+        if let Some(required) = self.required_attributes.as_ref() {
+            for matcher in required {
+                if !element
+                    .attributes()
+                    .iter()
+                    .any(|attr| matcher.matches(attr))
+                {
+                    return false;
+                }
+            }
+        }
+
+        if let Some(forbidden) = self.forbidden_attributes.as_ref() {
+            for matcher in forbidden {
+                if element
+                    .attributes()
+                    .iter()
+                    .any(|attr| matcher.matches(attr))
+                {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+}
+
+impl Display for XmlElementMatcher<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Start with the element name (or `*` for wildcard)
+        write!(f, "{}", self.name.unwrap_or("*"))?;
+
+        let has_required = self
+            .required_attributes
+            .as_ref()
+            .map_or(false, |set| !set.is_empty());
+        let has_forbidden = self
+            .forbidden_attributes
+            .as_ref()
+            .map_or(false, |set| !set.is_empty());
+
+        if has_required || has_forbidden {
+            f.write_str(" [")?;
+
+            let mut iter = self
+                .required_attributes
+                .iter()
+                .flatten()
+                .map(|attr| attr.to_string())
+                .chain(
+                    self.forbidden_attributes
+                        .iter()
+                        .flatten()
+                        .map(|attr| format!("!{}", attr)),
+                );
+
+            // Write the first attribute
+            if let Some(first) = iter.next() {
+                write!(f, "{}", first)?;
+            }
+
+            // Write remaining attributes separated by `,`
+            for attr in iter {
+                write!(f, ",{}", attr)?;
+            }
+
+            f.write_str("]")?; // Close attributes section
+        }
+
+        Ok(())
+    }
+}
+
+impl Default for XmlElementMatcher<'_> {
+    fn default() -> Self {
+        XmlElementMatcher {
+            name: None,
+            required_attributes: None,
+            forbidden_attributes: None,
+        }
+    }
+}
+
 /// Error occurring while parsing XML.
 #[derive(Debug, Clone)]
 pub enum XmlParseError {
@@ -868,5 +1186,267 @@ mod tests {
             result.unwrap_err(),
             XmlAttributeMatcherParseError::MissingEqualSign
         );
+    }
+
+    #[test]
+    fn test_xml_element_matcher_new() {
+        // No required or forbidden attributes
+        let matcher = XmlElementMatcher::new(Some("element"), None, None);
+        assert_eq!(matcher.name(), Some("element"));
+        assert!(matcher.required_attributes().is_none());
+        assert!(matcher.forbidden_attributes().is_none());
+
+        // Required and forbidden attributes
+        let required = vec![
+            XmlAttributeMatcher::new(Some("name"), Some("value")),
+            XmlAttributeMatcher::new(Some("name2"), Some("value2")),
+        ];
+        let forbidden = vec![
+            XmlAttributeMatcher::new(Some("name3"), Some("value3")),
+            XmlAttributeMatcher::new(Some("name4"), Some("value4")),
+        ];
+        let matcher = XmlElementMatcher::new(
+            Some("element"),
+            Some(required.iter().cloned().collect()),
+            Some(forbidden.iter().cloned().collect()),
+        );
+        assert_eq!(matcher.name(), Some("element"));
+        assert_eq!(matcher.required_attributes().unwrap().len(), 2);
+        assert_eq!(matcher.forbidden_attributes().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_xml_element_matcher_required_attributes_count() {
+        let matcher = XmlElementMatcher::new(None, None, None);
+        assert!(matcher.required_attributes_count().is_none());
+
+        let required = vec![
+            XmlAttributeMatcher::new(Some("name"), Some("value")),
+            XmlAttributeMatcher::new(Some("name2"), Some("value2")),
+        ];
+        let matcher = XmlElementMatcher::new(None, Some(required.iter().cloned().collect()), None);
+        assert_eq!(matcher.required_attributes_count(), Some(2));
+    }
+
+    #[test]
+    fn test_xml_element_matcher_forbidden_attributes_count() {
+        let matcher = XmlElementMatcher::new(None, None, None);
+        assert!(matcher.forbidden_attributes_count().is_none());
+
+        let forbidden = vec![
+            XmlAttributeMatcher::new(Some("name"), Some("value")),
+            XmlAttributeMatcher::new(Some("name2"), Some("value2")),
+        ];
+        let matcher = XmlElementMatcher::new(None, None, Some(forbidden.iter().cloned().collect()));
+        assert_eq!(matcher.forbidden_attributes_count(), Some(2));
+    }
+
+    #[test]
+    fn test_xml_element_matcher_matches() {
+        // Test without required and forbidden attributes
+        let matcher = XmlElementMatcher::new(Some("element"), None, None);
+        let element = XmlElement::new("element".to_string(), HashSet::new());
+        assert!(matcher.matches(&element));
+
+        let element = XmlElement::new(
+            "element".to_string(),
+            vec![
+                XmlAttribute::new("name".to_string(), "value".to_string()),
+                XmlAttribute::new("name2".to_string(), "value2".to_string()),
+            ]
+            .iter()
+            .cloned()
+            .collect(),
+        );
+        assert!(matcher.matches(&element));
+
+        // Test with required and forbidden attributes
+        let required = vec![
+            XmlAttributeMatcher::new(Some("name"), Some("value")),
+            XmlAttributeMatcher::new(Some("name2"), Some("value2")),
+        ];
+        let forbidden = vec![
+            XmlAttributeMatcher::new(Some("name3"), Some("value3")),
+            XmlAttributeMatcher::new(Some("name4"), Some("value4")),
+        ];
+        let matcher = XmlElementMatcher::new(
+            Some("element"),
+            Some(required.iter().cloned().collect()),
+            Some(forbidden.iter().cloned().collect()),
+        );
+
+        let element = XmlElement::new(
+            "element".to_string(),
+            vec![
+                XmlAttribute::new("name".to_string(), "value".to_string()),
+                XmlAttribute::new("name2".to_string(), "value2".to_string()),
+            ]
+            .iter()
+            .cloned()
+            .collect(),
+        );
+        assert!(matcher.matches(&element));
+
+        let element = XmlElement::new(
+            "element".to_string(),
+            vec![
+                XmlAttribute::new("name".to_string(), "value".to_string()),
+                XmlAttribute::new("name2".to_string(), "value2".to_string()),
+                XmlAttribute::new("name3".to_string(), "value3".to_string()),
+            ]
+            .iter()
+            .cloned()
+            .collect(),
+        );
+        assert!(!matcher.matches(&element));
+
+        let element = XmlElement::new(
+            "element".to_string(),
+            vec![
+                XmlAttribute::new("name".to_string(), "value".to_string()),
+                XmlAttribute::new("name2".to_string(), "value2".to_string()),
+                XmlAttribute::new("name3".to_string(), "value3".to_string()),
+                XmlAttribute::new("name4".to_string(), "value4".to_string()),
+            ]
+            .iter()
+            .cloned()
+            .collect(),
+        );
+        assert!(!matcher.matches(&element));
+    }
+
+    #[test]
+    fn test_xml_element_matcher_display() {
+        // Test without required and forbidden attributes
+        let matcher = XmlElementMatcher::new(Some("element"), None, None);
+        assert_eq!(format!("{}", matcher), "element");
+
+        // Test without required and forbidden attributes and wildcard element
+        let matcher = XmlElementMatcher::new(None, None, None);
+        assert_eq!(format!("{}", matcher), "*");
+
+        // Test with required and forbidden attributes
+        let matcher = XmlElementMatcher::new(Some("element"), None, None);
+        assert_eq!(format!("{}", matcher), "element");
+
+        let required = vec![
+            XmlAttributeMatcher::new(Some("name"), Some("value")),
+            XmlAttributeMatcher::new(Some("name2"), Some("value2")),
+        ];
+        let forbidden = vec![
+            XmlAttributeMatcher::new(Some("name3"), Some("value3")),
+            XmlAttributeMatcher::new(Some("name4"), Some("value4")),
+        ];
+        let matcher = XmlElementMatcher::new(
+            Some("element"),
+            Some(required.iter().cloned().collect()),
+            Some(forbidden.iter().cloned().collect()),
+        );
+
+        let result = format!("{}", matcher);
+        let expected_prefix = "element [";
+        assert!(result.starts_with(expected_prefix));
+
+        let attributes_str = result
+            .strip_prefix(expected_prefix)
+            .and_then(|s| s.strip_suffix("]"))
+            .expect("Malformed output format");
+
+        let result_set: HashSet<&str> = attributes_str.split(',').collect();
+        let expected_set: HashSet<&str> = [
+            "name=\"value\"",
+            "name2=\"value2\"",
+            "!name3=\"value3\"",
+            "!name4=\"value4\"",
+        ]
+        .into_iter()
+        .collect();
+
+        assert_eq!(result_set, expected_set);
+    }
+
+    #[test]
+    fn test_xml_element_matcher_from_str() {
+        // Test without required and forbidden attributes
+        let matcher = XmlElementMatcher::from_str("element [*]").unwrap();
+        assert_eq!(matcher.name(), Some("element"));
+        assert!(matcher.required_attributes().is_none());
+        assert!(matcher.forbidden_attributes().is_none());
+
+        // Test without required and forbidden attributes and wildcard element
+        let matcher = XmlElementMatcher::from_str("* [*]").unwrap();
+        assert_eq!(matcher.name(), None);
+        assert!(matcher.required_attributes().is_none());
+        assert!(matcher.forbidden_attributes().is_none());
+
+        let matcher = XmlElementMatcher::from_str("element []").unwrap();
+        assert_eq!(matcher.name(), Some("element"));
+        assert!(matcher.required_attributes().is_some());
+        assert!(matcher.required_attributes().unwrap().is_empty());
+        assert!(matcher.forbidden_attributes().is_some());
+        assert!(matcher.forbidden_attributes().unwrap().is_empty());
+
+        let matcher = XmlElementMatcher::from_str("* []").unwrap();
+        assert_eq!(matcher.name(), None);
+        assert!(matcher.required_attributes().is_some());
+        assert!(matcher.required_attributes().unwrap().is_empty());
+        assert!(matcher.forbidden_attributes().is_some());
+        assert!(matcher.forbidden_attributes().unwrap().is_empty());
+
+        let matcher = XmlElementMatcher::from_str("*[]").unwrap();
+        assert_eq!(matcher.name(), None);
+        assert!(matcher.required_attributes().is_some());
+        assert!(matcher.required_attributes().unwrap().is_empty());
+        assert!(matcher.forbidden_attributes().is_some());
+        assert!(matcher.forbidden_attributes().unwrap().is_empty());
+
+        let matcher =
+            XmlElementMatcher::from_str("element [name='value',!name2='value2']").unwrap();
+        assert_eq!(matcher.name(), Some("element"));
+        assert_eq!(
+            matcher
+                .required_attributes()
+                .unwrap()
+                .contains(&XmlAttributeMatcher::new(Some("name"), Some("value"))),
+            true
+        );
+        assert_eq!(
+            matcher
+                .forbidden_attributes()
+                .unwrap()
+                .contains(&XmlAttributeMatcher::new(Some("name2"), Some("value2"))),
+            true
+        );
+    }
+
+    #[test]
+    fn test_xml_element_matcher_from_str_invalid_string() {
+        let result = XmlElementMatcher::from_str("element");
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            XmlElementMatcherParseError::MissingAttributeListStart
+        );
+
+        let result = XmlElementMatcher::from_str("element [");
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            XmlElementMatcherParseError::MissingAttributeListEnd
+        );
+
+        let result = XmlElementMatcher::from_str("element [name='value'");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            XmlElementMatcherParseError::MissingAttributeListEnd
+        ));
+
+        let result = XmlElementMatcher::from_str("element [name value]");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            XmlElementMatcherParseError::XmlAttributeMatcherParseError(_)
+        ));
     }
 }
