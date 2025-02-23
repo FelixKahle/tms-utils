@@ -787,6 +787,14 @@ impl Display for XmlElementMatcher<'_> {
     }
 }
 
+impl<'a> TryFrom<&'a str> for XmlElementMatcher<'a> {
+    type Error = XmlElementMatcherParseError;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        XmlElementMatcher::from_str(s)
+    }
+}
+
 impl Default for XmlElementMatcher<'_> {
     fn default() -> Self {
         XmlElementMatcher {
@@ -794,6 +802,121 @@ impl Default for XmlElementMatcher<'_> {
             required_attributes: None,
             forbidden_attributes: None,
         }
+    }
+}
+
+/// An XML path matcher.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct XmlPathMatcher<'a> {
+    /// The elements to match.
+    elements: Vec<XmlElementMatcher<'a>>,
+}
+
+impl<'a> XmlPathMatcher<'a> {
+    /// Create a new XML path matcher.
+    ///
+    /// # Arguments
+    /// - elements: The elements to match.
+    ///
+    /// # Returns
+    /// The new XML path matcher.
+    pub fn new(elements: Vec<XmlElementMatcher<'a>>) -> Self {
+        XmlPathMatcher { elements }
+    }
+
+    /// Parses an XML path matcher from a string.
+    ///
+    /// # Format
+    /// The expected format for an XML path matcher string is:
+    ///
+    /// ```
+    /// element1[attr1="value1",!attr2="value2"]/element2[attr3="value3"]/...
+    /// ```
+    ///
+    /// - Each element is separated by `/`.
+    /// - Each element follows the **XmlElementMatcher** syntax.
+    ///
+    /// # Examples
+    ///
+    /// ## Matching an absolute path
+    /// ```rust
+    /// let matcher = XmlPathMatcher::from_str("root [*]/parent [type='container']/child [id='123']").unwrap();
+    /// assert_eq!(matcher.elements().len(), 3);
+    /// ```
+    ///
+    /// ## Matching with wildcards
+    /// ```rust
+    /// let matcher = XmlPathMatcher::from_str("* [*]/section [id='42']").unwrap();
+    /// assert_eq!(matcher.elements().len(), 2);
+    /// ```
+    ///
+    /// # Errors
+    /// Returns `Err(XmlElementMatcherParseError)` if:
+    /// - Any element in the path is **not a valid `XmlElementMatcher`**.
+    ///
+    /// ## Example of an Invalid Path
+    /// ```rust
+    /// let result = XmlPathMatcher::from_str("root / invalid[attr='missing_quote]");
+    /// assert!(result.is_err()); // Invalid attribute syntax
+    /// ```
+    ///
+    /// # Notes
+    /// - Empty paths are **invalid** (`""` should return an error).
+    /// - Whitespace is **trimmed** from each element.
+    pub fn from_str(s: &'a str) -> Result<Self, XmlElementMatcherParseError> {
+        let elements = s
+            .split('/')
+            .map(str::trim)
+            .map(XmlElementMatcher::from_str)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(XmlPathMatcher::new(elements))
+    }
+
+    /// Get the elements to match.
+    ///
+    /// # Returns
+    /// The elements to match.
+    pub fn elements(&self) -> &[XmlElementMatcher<'a>] {
+        &self.elements
+    }
+
+    /// Check if the path matches the matcher.
+    ///
+    /// # Arguments
+    /// - stack: The stack of elements to check.
+    pub fn matches(&self, stack: &XmlElementStack) -> bool {
+        if self.elements.len() != stack.len() {
+            return false;
+        }
+
+        for (matcher, element) in self.elements.iter().zip(stack.iter().rev()) {
+            if !matcher.matches(element) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
+
+impl<'a> TryFrom<&'a str> for XmlPathMatcher<'a> {
+    type Error = XmlElementMatcherParseError;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        XmlPathMatcher::from_str(s)
+    }
+}
+
+impl Display for XmlPathMatcher<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Seperate each element matcher with `/`
+        for (i, element) in self.elements.iter().enumerate() {
+            if i > 0 {
+                f.write_str("/")?;
+            }
+            write!(f, "{}", element)?;
+        }
+        Ok(())
     }
 }
 
@@ -1448,5 +1571,120 @@ mod tests {
             result.unwrap_err(),
             XmlElementMatcherParseError::XmlAttributeMatcherParseError(_)
         ));
+    }
+
+    #[test]
+    fn test_xml_path_matcher_new() {
+        let elements = vec![
+            XmlElementMatcher::new(Some("element"), None, None),
+            XmlElementMatcher::new(None, None, None),
+        ];
+        let matcher = XmlPathMatcher::new(elements);
+        assert_eq!(matcher.elements().len(), 2);
+    }
+
+    #[test]
+    fn test_xml_path_matcher_display() {
+        let elements = vec![
+            XmlElementMatcher::new(Some("element"), None, None),
+            XmlElementMatcher::try_from("element [name='value']").unwrap(),
+            XmlElementMatcher::try_from("element2 [name2=*, name3='123']").unwrap(),
+        ];
+        let matcher = XmlPathMatcher::new(elements);
+        let result = format!("{}", matcher);
+        assert!(result.contains("element"));
+        assert!(result.contains("element [name=\"value\"]"));
+        assert!(result.contains("element2 [name2=\"*\",name3=\"123\"]"));
+    }
+
+    #[test]
+    fn test_xml_path_matcher_matches() {
+        // Create an XML path matcher with specific element matchers
+        let path_matcher = XmlPathMatcher::new(vec![
+            XmlElementMatcher::try_from("root [*]").unwrap(),
+            XmlElementMatcher::try_from("parent [type='container']").unwrap(),
+            XmlElementMatcher::try_from("child [id='123']").unwrap(),
+        ]);
+
+        // Create a matching XML element stack
+        let mut stack = XmlElementStack::new();
+        stack.push(XmlElement::new("root".to_string(), HashSet::new())); // Matches "root [*]"
+        stack.push(XmlElement::new(
+            "parent".to_string(),
+            vec![XmlAttribute::new(
+                "type".to_string(),
+                "container".to_string(),
+            )]
+            .into_iter()
+            .collect(),
+        )); // Matches "parent [type='container']"
+        stack.push(XmlElement::new(
+            "child".to_string(),
+            vec![XmlAttribute::new("id".to_string(), "123".to_string())]
+                .into_iter()
+                .collect(),
+        )); // Matches "child [id='123']"
+
+        assert!(path_matcher.matches(&stack)); // Should return true
+
+        // Create a non-matching XML element stack (wrong attribute)
+        let mut wrong_stack = XmlElementStack::new();
+        wrong_stack.push(XmlElement::new("root".to_string(), HashSet::new()));
+        wrong_stack.push(XmlElement::new(
+            "parent".to_string(),
+            vec![XmlAttribute::new("type".to_string(), "wrong".to_string())]
+                .into_iter()
+                .collect(),
+        )); // Does not match "parent [type='container']"
+
+        assert!(!path_matcher.matches(&wrong_stack)); // Should return false
+
+        // Create a non-matching XML element stack (wrong structure)
+        let mut short_stack = XmlElementStack::new();
+        short_stack.push(XmlElement::new("root".to_string(), HashSet::new()));
+
+        assert!(!path_matcher.matches(&short_stack)); // Should return false (not enough elements)
+    }
+
+    #[test]
+    fn test_xml_path_matcher_from_str_valid() {
+        // Single element
+        let matcher = XmlPathMatcher::from_str("root [*]").unwrap();
+        assert_eq!(matcher.elements().len(), 1);
+        assert_eq!(matcher.elements()[0].name(), Some("root"));
+
+        // Multiple elements
+        let matcher =
+            XmlPathMatcher::from_str("root [*]/parent [type='container']/child [id='123']")
+                .unwrap();
+        assert_eq!(matcher.elements().len(), 3);
+        assert_eq!(matcher.elements()[0].name(), Some("root"));
+        assert_eq!(matcher.elements()[1].name(), Some("parent"));
+        assert_eq!(matcher.elements()[2].name(), Some("child"));
+
+        // Wildcards
+        let matcher = XmlPathMatcher::from_str("* [*]/section [id='42']").unwrap();
+        assert_eq!(matcher.elements().len(), 2);
+        assert_eq!(matcher.elements()[0].name(), None); // Matches any element
+        assert_eq!(matcher.elements()[1].name(), Some("section"));
+    }
+
+    #[test]
+    fn test_xml_path_matcher_from_str_invalid() {
+        // Missing closing bracket
+        let result = XmlPathMatcher::from_str("root [id='123'");
+        assert!(result.is_err());
+
+        // Invalid separator (should be `/`, not `,`)
+        let result = XmlPathMatcher::from_str("root [*],parent [type='container']");
+        assert!(result.is_err());
+
+        // Empty input string
+        let result = XmlPathMatcher::from_str("");
+        assert!(result.is_err());
+
+        // Incorrect attribute syntax
+        let result = XmlPathMatcher::from_str("element[attr=value]"); // Missing quotes
+        assert!(result.is_err());
     }
 }
