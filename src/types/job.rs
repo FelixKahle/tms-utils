@@ -2,9 +2,8 @@
 
 #![allow(dead_code)]
 
+use crate::types::jn::JobNumber;
 use std::fmt::Display;
-
-use crate::jn::JobNumber;
 
 pub struct Job {
     job_number: JobNumber,

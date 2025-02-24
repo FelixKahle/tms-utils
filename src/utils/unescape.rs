@@ -31,6 +31,8 @@
 //! Utilities for validating string and char literals and turning them into
 //! values they represent.
 
+#![allow(dead_code)]
+
 use std::ops::Range;
 use std::str::Chars;
 use Mode::*;
