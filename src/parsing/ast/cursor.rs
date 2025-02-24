@@ -2,13 +2,14 @@
 
 #![allow(dead_code)]
 
-use std::{fmt::Display, str::Chars};
+use std::{fmt::Display, iter::FusedIterator, str::Chars};
 
 /// Peekable iterator over a char sequence.
 ///
 /// This struct allows you to inspect upcoming characters ("peek") without
 /// consuming them, and also advance/consume them with `advance` or more
 /// specialized methods like `consume_while`.
+#[derive(Debug, Clone)]
 pub struct Cursor<'a> {
     /// The length of the remaining input.
     len_remaining: usize,
@@ -74,14 +75,6 @@ impl<'a> Cursor<'a> {
         self.len_remaining = self.remaining_str().len();
     }
 
-    /// Consumes and returns the next character. Returns `None` if there are no more.
-    ///
-    /// # Returns
-    /// The next character, or `None` if there are no more characters.
-    pub fn advance(&mut self) -> Option<char> {
-        self.chars.next()
-    }
-
     /// Consumes characters while the given predicate returns `true`.
     ///
     /// # Arguments
@@ -91,7 +84,7 @@ impl<'a> Cursor<'a> {
             if !predicate(c) {
                 break;
             }
-            self.advance();
+            self.next();
         }
     }
 
@@ -111,9 +104,11 @@ impl Iterator for Cursor<'_> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.advance()
+        self.chars.next()
     }
 }
+
+impl FusedIterator for Cursor<'_> {}
 
 impl<'a> From<&'a str> for Cursor<'a> {
     fn from(input: &'a str) -> Self {
@@ -169,24 +164,24 @@ mod tests {
     /// Shows that `advance` consumes one character at a time
     /// and that `peek` reflects the new position afterward.
     #[test]
-    fn test_advance() {
+    fn test_next() {
         let mut cursor = Cursor::new("Hello");
-        assert_eq!(cursor.advance(), Some('H'));
+        assert_eq!(cursor.next(), Some('H'));
         // Now the cursor should be at 'e'
         assert_eq!(cursor.peek(), Some('e'));
         assert_eq!(cursor.remaining_str(), "ello");
 
         // Advance more times
-        assert_eq!(cursor.advance(), Some('e'));
-        assert_eq!(cursor.advance(), Some('l'));
+        assert_eq!(cursor.next(), Some('e'));
+        assert_eq!(cursor.next(), Some('l'));
         // Cursor should now be at 'l'
         assert_eq!(cursor.peek(), Some('l'));
 
         // Consume the rest
-        assert_eq!(cursor.advance(), Some('l'));
-        assert_eq!(cursor.advance(), Some('o'));
+        assert_eq!(cursor.next(), Some('l'));
+        assert_eq!(cursor.next(), Some('o'));
         // At the end
-        assert_eq!(cursor.advance(), None);
+        assert_eq!(cursor.next(), None);
     }
 
     /// Checks that `consumed_bytes` tracks the total bytes consumed correctly.
@@ -198,23 +193,23 @@ mod tests {
 
         // Advance one character (in UTF-8, 'α' is 2 bytes, but from the cursor's viewpoint,
         // it's about the difference in the underlying string length).
-        cursor.advance();
+        cursor.next();
         // The consumed byte count should be the UTF-8 length of 'α'.
         // 'α' (U+03B1) is 2 bytes in UTF-8.
         assert_eq!(cursor.consumed_bytes(), 2);
 
         // Advance another character
-        cursor.advance();
+        cursor.next();
         // 'β' (U+03B2) is also 2 bytes in UTF-8, total 4 consumed now.
         assert_eq!(cursor.consumed_bytes(), 4);
 
         // Advance final character
-        cursor.advance();
+        cursor.next();
         // 'γ' (U+03B3) is 2 bytes in UTF-8, total 6 consumed now.
         assert_eq!(cursor.consumed_bytes(), 6);
 
         // No more characters left
-        assert_eq!(cursor.advance(), None);
+        assert_eq!(cursor.next(), None);
         // consumed_bytes should not change further since there's nothing left to consume
         assert_eq!(cursor.consumed_bytes(), 6);
     }
@@ -225,7 +220,7 @@ mod tests {
     fn test_reset_consumed_bytes() {
         let mut cursor = Cursor::new("Hello");
         // Consume 'H' (1 byte)
-        cursor.advance();
+        cursor.next();
         assert_eq!(cursor.consumed_bytes(), 1);
 
         // Reset consumed bytes
@@ -275,7 +270,7 @@ mod tests {
 
         assert_eq!(cursor.remaining_str(), "");
         assert_eq!(cursor.peek(), None);
-        assert_eq!(cursor.advance(), None);
+        assert_eq!(cursor.next(), None);
         assert_eq!(cursor.consumed_bytes(), 0);
 
         cursor.consume_while(|c| c.is_ascii_alphabetic());
@@ -299,7 +294,7 @@ mod tests {
         assert_eq!(cursor.consumed_bytes(), 0);
 
         // Advance once
-        assert_eq!(cursor.advance(), Some('X'));
+        assert_eq!(cursor.next(), Some('X'));
         // Now empty
         assert_eq!(cursor.remaining_str(), "");
         // consumed_bytes should be 1 (assuming ASCII 'X')
@@ -307,7 +302,7 @@ mod tests {
 
         // Everything else should yield None or empty
         assert_eq!(cursor.peek(), None);
-        assert_eq!(cursor.advance(), None);
+        assert_eq!(cursor.next(), None);
     }
 
     #[test]
