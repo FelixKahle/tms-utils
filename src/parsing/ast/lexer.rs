@@ -202,6 +202,17 @@ mod tests {
     }
 
     #[test]
+    fn test_identifier_token_to_owned() {
+        fn produce_owned_identifier_token() -> IdentifierToken<'static> {
+            let owned_string = "test".to_owned();
+            IdentifierToken::new(owned_string)
+        }
+
+        let identifier_token = produce_owned_identifier_token();
+        assert_eq!(identifier_token.name(), "test");
+    }
+
+    #[test]
     fn test_string_literal_token_new() {
         let string_literal_token = StringLiteralToken::new("test");
         assert_eq!(string_literal_token.value(), "test");
@@ -214,6 +225,17 @@ mod tests {
     fn test_string_literal_token_display() {
         let string_literal_token = StringLiteralToken::new("test");
         assert_eq!(format!("{}", string_literal_token), "\"test\"");
+    }
+
+    #[test]
+    fn test_string_literal_token_to_owned() {
+        fn produce_owned_string_literal_token() -> StringLiteralToken<'static> {
+            let owned_string = "test".to_owned();
+            StringLiteralToken::new(owned_string)
+        }
+
+        let string_literal_token = produce_owned_string_literal_token();
+        assert_eq!(string_literal_token.value(), "test");
     }
 
     #[test]
@@ -232,6 +254,18 @@ mod tests {
 
         let string_literal_token = super::StringLiteralToken::new("test");
         assert_eq!(format!("{}", TokenType::StringLiteral(string_literal_token)), "StringLiteral(\"test\")");
+    }
+
+    #[test]
+    fn test_owned_token_type() {
+        fn produce_owned_token_type() -> TokenType<'static> {
+            let owned_string = "test".to_owned();
+            let identifier_token = IdentifierToken::new(owned_string);
+            TokenType::Identifier(identifier_token)
+        }
+
+        let token_type = produce_owned_token_type();
+        assert_eq!(token_type, TokenType::Identifier(IdentifierToken::new("test")));
     }
 
     #[test]
