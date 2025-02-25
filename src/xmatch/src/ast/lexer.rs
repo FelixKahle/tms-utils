@@ -182,6 +182,50 @@ impl Default for TextSpan {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Token<'a> {
+    /// The type of the token.
+    token_type: TokenType<'a>,
+    /// The text span of the token.
+    text_span: TextSpan,
+}
+
+impl<'a> Token<'a> {
+    /// Creates a new token.
+    ///
+    /// # Arguments
+    /// - `token_type`: The type of the token.
+    /// - `text_span`: The text span of the token.
+    ///
+    /// # Returns
+    /// A new token.
+    pub fn new(token_type: TokenType<'a>, text_span: TextSpan) -> Self {
+        Self { token_type, text_span }
+    }
+
+    /// Returns the text span of the token.
+    ///
+    /// # Returns
+    /// The text span of the token.
+    pub fn token_type(&self) -> &TokenType<'a> {
+        &self.token_type
+    }
+
+    /// Returns the text span of the token.
+    ///
+    /// # Returns
+    /// The text span of the token.
+    pub fn text_span(&self) -> &TextSpan {
+        &self.text_span
+    }
+}
+
+impl Display for Token<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.token_type, self.text_span)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -285,5 +329,30 @@ mod tests {
     fn test_text_span_display() {
         let text_span = TextSpan::new(0, 1);
         assert_eq!(format!("{}", text_span), "[0, 1]");
+    }
+
+    #[test]
+    fn test_token_new() {
+        let token_type = TokenType::Asterisk;
+        let text_span = TextSpan::new(0, 1);
+        let token = Token::new(token_type.clone(), text_span.clone());
+
+        assert_eq!(token.token_type(), &token_type);
+        assert_eq!(token.text_span(), &text_span);
+    }
+
+    #[test]
+    fn test_token_display() {
+        let token_type = TokenType::Asterisk;
+        let text_span = TextSpan::new(0, 1);
+        let token = Token::new(token_type.clone(), text_span.clone());
+
+        assert_eq!(format!("{}", token), "* [0, 1]");
+
+        let token_type = TokenType::Identifier(IdentifierToken::new("test"));
+        let text_span = TextSpan::new(0, 1);
+        let token = Token::new(token_type.clone(), text_span.clone());
+
+        assert_eq!(format!("{}", token), "Identifier(test) [0, 1]");
     }
 }
