@@ -334,6 +334,42 @@ impl Display for Token<'_> {
     }
 }
 
+/// An error that occurs when a non-expected character is encountered.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonExpectedCharacterError {
+    /// The character that was encountered.
+    character: char,
+}
+
+impl NonExpectedCharacterError {
+    /// Creates a new non-expected character error.
+    ///
+    /// # Arguments
+    /// - `character`: The character that was encountered.
+    ///
+    /// # Returns
+    /// A new non-expected character error.
+    pub fn new(character: char) -> Self {
+        Self { character }
+    }
+
+    /// Returns the character that was encountered.
+    ///
+    /// # Returns
+    /// The character that was encountered.
+    pub fn character(&self) -> char {
+        self.character
+    }
+}
+
+impl Display for NonExpectedCharacterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Non-expected character: '{}'", self.character)
+    }
+}
+
+impl std::error::Error for NonExpectedCharacterError {}
+
 /// An error that occurs when a non-terminated string literal is encountered.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NonTerminatedStringLiteralError;
@@ -346,6 +382,66 @@ impl Display for NonTerminatedStringLiteralError {
 
 impl std::error::Error for NonTerminatedStringLiteralError {}
 
+/// An error that occurs when tokenizing the input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TokenizerError {
+    /// A non-expected character error.
+    NonExpectedCharacter(NonExpectedCharacterError),
+
+    /// A non-terminated string literal error.
+    NonTerminatedStringLiteral(NonTerminatedStringLiteralError),
+}
+
+impl Display for TokenizerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TokenizerError::NonExpectedCharacter(error) => write!(f, "{}", error),
+            TokenizerError::NonTerminatedStringLiteral(error) => write!(f, "{}", error),
+        }
+    }
+}
+
+impl std::error::Error for TokenizerError {}
+
+impl From<NonExpectedCharacterError> for TokenizerError {
+    fn from(error: NonExpectedCharacterError) -> Self {
+        TokenizerError::NonExpectedCharacter(error)
+    }
+}
+
+impl From<NonTerminatedStringLiteralError> for TokenizerError {
+    fn from(error: NonTerminatedStringLiteralError) -> Self {
+        TokenizerError::NonTerminatedStringLiteral(error)
+    }
+}
+
+/// Returns `true` if `c` is valid as a first character of an identifier.
+/// See [Rust language reference](https://doc.rust-lang.org/reference/identifiers.html) for
+/// a formal definition of valid identifier name.
+///
+/// # Arguments
+/// - `c`: The character to check.
+///
+/// # Returns
+/// True if `c` is valid as a first character of an identifier.
+fn is_id_start(c: char) -> bool {
+    // This is XID_Start OR '_' (which formally is not a XID_Start).
+    c == '_' || unicode_xid::UnicodeXID::is_xid_start(c)
+}
+
+/// Returns `true if `c` is valid as a non-first character of an identifier.
+/// See [Rust language reference](https://doc.rust-lang.org/reference/identifiers.html) for
+/// a formal definition of valid identifier name.
+///
+/// # Arguments
+/// - `c`: The character to check.
+///
+/// # Returns
+/// True if `c` is valid as a non-first character of an identifier.
+pub fn is_id_continue(c: char) -> bool {
+    unicode_xid::UnicodeXID::is_xid_continue(c)
+}
+
 impl<'a> CharCursor<'a> {
     /// Returns the next token from the input.
     ///
@@ -353,7 +449,7 @@ impl<'a> CharCursor<'a> {
     ///
     /// # Returns
     /// The next token from the input.
-    fn next_token(&mut self) -> Result<Token<'a>, NonTerminatedStringLiteralError> {
+    fn next_token(&mut self) -> Result<Token<'a>, TokenizerError> {
         // This moves the cursor to the next non-whitespace character.
         self.consume_while(crate::utils::str::is_whitespace);
 
@@ -373,10 +469,10 @@ impl<'a> CharCursor<'a> {
             ',' => return Ok(Token::spanned(SpannedTokenType::Comma, TextSpan::new(current_position, current_position + 1))),
             '/' => return Ok(Token::spanned(SpannedTokenType::Slash, TextSpan::new(current_position, current_position + 1))),
             ':' => return Ok(Token::spanned(SpannedTokenType::Colon, TextSpan::new(current_position, current_position + 1))),
-            _ => {}
+            '"' => todo!(),
+            c if is_id_start(c) => todo!(),
+            _ => return Err(TokenizerError::NonExpectedCharacter(NonExpectedCharacterError::new(next_char))),
         }
-
-        Ok(Token::non_spanned(NonSpannedTokenType::End))
     }
 }
 
@@ -623,5 +719,12 @@ mod tests {
             let next_token = char_cursor.next_token().unwrap();
             assert_eq!(next_token, *token);
         }
+    }
+
+    #[test]
+    fn test_char_cursor_next_token_non_expected_character() {
+        let mut char_cursor = CharCursor::new("?");
+        let error = char_cursor.next_token().unwrap_err();
+        assert_eq!(error.to_string(), "Non-expected character: '?'");
     }
 }
