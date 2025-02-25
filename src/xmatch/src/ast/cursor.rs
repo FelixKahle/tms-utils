@@ -62,17 +62,12 @@ impl<'a> CharCursor<'a> {
         self.peek_nth(0)
     }
 
-    /// Returns the total number of bytes consumed so far.
+    /// Returns the total number of characters consumed so far.
     ///
     /// # Returns
     /// The number of bytes consumed so far.
-    pub fn consumed_bytes(&self) -> u32 {
-        (self.len_remaining - self.remaining_str().len()) as u32
-    }
-
-    /// Resets the number of consumed bytes to 0, without changing the iterator position.
-    pub fn reset_consumed_bytes(&mut self) {
-        self.len_remaining = self.remaining_str().len();
+    pub fn consumed_chars(&self) -> usize {
+        self.len_remaining - self.remaining_str().len()
     }
 
     /// Consumes characters while the given predicate returns `true`.
@@ -186,48 +181,32 @@ mod tests {
 
     /// Checks that `consumed_bytes` tracks the total bytes consumed correctly.
     #[test]
-    fn test_char_cursor_consumed_bytes() {
+    fn test_char_cursor_consumed_chars() {
         let mut cursor = CharCursor::new("αβγ"); // each char may be multiple bytes in UTF-8
                                                  // initially zero
-        assert_eq!(cursor.consumed_bytes(), 0);
+        assert_eq!(cursor.consumed_chars(), 0);
 
         // Advance one character (in UTF-8, 'α' is 2 bytes, but from the cursor's viewpoint,
         // it's about the difference in the underlying string length).
         cursor.next();
         // The consumed byte count should be the UTF-8 length of 'α'.
         // 'α' (U+03B1) is 2 bytes in UTF-8.
-        assert_eq!(cursor.consumed_bytes(), 2);
+        assert_eq!(cursor.consumed_chars(), 2);
 
         // Advance another character
         cursor.next();
         // 'β' (U+03B2) is also 2 bytes in UTF-8, total 4 consumed now.
-        assert_eq!(cursor.consumed_bytes(), 4);
+        assert_eq!(cursor.consumed_chars(), 4);
 
         // Advance final character
         cursor.next();
         // 'γ' (U+03B3) is 2 bytes in UTF-8, total 6 consumed now.
-        assert_eq!(cursor.consumed_bytes(), 6);
+        assert_eq!(cursor.consumed_chars(), 6);
 
         // No more characters left
         assert_eq!(cursor.next(), None);
         // consumed_bytes should not change further since there's nothing left to consume
-        assert_eq!(cursor.consumed_bytes(), 6);
-    }
-
-    /// Ensures that `reset_consumed_bytes` sets the count back to 0
-    /// but does not revert the cursor's actual position.
-    #[test]
-    fn test_char_cursor_reset_consumed_bytes() {
-        let mut cursor = CharCursor::new("Hello");
-        // Consume 'H' (1 byte)
-        cursor.next();
-        assert_eq!(cursor.consumed_bytes(), 1);
-
-        // Reset consumed bytes
-        cursor.reset_consumed_bytes();
-        assert_eq!(cursor.consumed_bytes(), 0);
-        // The underlying position is still advanced to 'e'
-        assert_eq!(cursor.remaining_str(), "ello");
+        assert_eq!(cursor.consumed_chars(), 6);
     }
 
     /// Validates that `consume_while` advances the cursor for all matching characters
@@ -271,7 +250,7 @@ mod tests {
         assert_eq!(cursor.remaining_str(), "");
         assert_eq!(cursor.peek(), None);
         assert_eq!(cursor.next(), None);
-        assert_eq!(cursor.consumed_bytes(), 0);
+        assert_eq!(cursor.consumed_chars(), 0);
 
         cursor.consume_while(|c| c.is_ascii_alphabetic());
         assert_eq!(cursor.remaining_str(), "");
@@ -291,14 +270,14 @@ mod tests {
         assert_eq!(cursor.peek_nth(1), None); // no second char
 
         // consumed_bytes is initially zero
-        assert_eq!(cursor.consumed_bytes(), 0);
+        assert_eq!(cursor.consumed_chars(), 0);
 
         // Advance once
         assert_eq!(cursor.next(), Some('X'));
         // Now empty
         assert_eq!(cursor.remaining_str(), "");
         // consumed_bytes should be 1 (assuming ASCII 'X')
-        assert_eq!(cursor.consumed_bytes(), 1);
+        assert_eq!(cursor.consumed_chars(), 1);
 
         // Everything else should yield None or empty
         assert_eq!(cursor.peek(), None);

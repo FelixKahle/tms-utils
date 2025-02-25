@@ -4,6 +4,8 @@
 
 use std::{borrow::Cow, fmt::Display};
 
+use super::cursor::CharCursor;
+
 /// An identifier token.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentifierToken<'a> {
@@ -80,7 +82,7 @@ impl<'a> StringLiteralToken<'a> {
 
 impl Display for StringLiteralToken<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\"{}\"", self.value)
+        write!(f, "{}", self.value)
     }
 }
 
@@ -186,7 +188,7 @@ impl TextSpan {
 
 impl Display for TextSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}, {}]", self.start, self.end)
+        write!(f, "[{}, {})", self.start, self.end)
     }
 }
 
@@ -286,6 +288,18 @@ pub enum Token<'a> {
     NonSpanned(NonSpannedToken),
 }
 
+impl<'a> From<SpannedToken<'a>> for Token<'a> {
+    fn from(spanned_token: SpannedToken<'a>) -> Self {
+        Token::Spanned(spanned_token)
+    }
+}
+
+impl From<NonSpannedToken> for Token<'_> {
+    fn from(non_spanned_token: NonSpannedToken) -> Self {
+        Token::NonSpanned(non_spanned_token)
+    }
+}
+
 impl<'a> Token<'a> {
     /// Creates a new spanned token.
     ///
@@ -318,6 +332,68 @@ impl Display for Token<'_> {
             Token::NonSpanned(non_spanned_token) => write!(f, "{}", non_spanned_token),
         }
     }
+}
+
+/// An error that occurs when a non-terminated string literal is encountered.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonTerminatedStringLiteralError;
+
+impl Display for NonTerminatedStringLiteralError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Non-terminated string literal")
+    }
+}
+
+impl std::error::Error for NonTerminatedStringLiteralError {}
+
+impl<'a> CharCursor<'a> {
+    /// Returns the next token from the input.
+    ///
+    /// This moves the cursor to the next non-whitespace character.
+    ///
+    /// # Returns
+    /// The next token from the input.
+    fn next_token(&mut self) -> Result<Token<'a>, NonTerminatedStringLiteralError> {
+        // This moves the cursor to the next non-whitespace character.
+        self.consume_while(crate::utils::str::is_whitespace);
+
+        // Get the current position of the cursor and the next character.
+        let current_position = self.consumed_chars();
+        let next_char = match self.next() {
+            Some(next_char) => next_char,
+            None => return Ok(Token::non_spanned(NonSpannedTokenType::End)),
+        };
+
+        match next_char {
+            '*' => return Ok(Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(current_position, current_position + 1))),
+            '=' => return Ok(Token::spanned(SpannedTokenType::Equal, TextSpan::new(current_position, current_position + 1))),
+            '!' => return Ok(Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(current_position, current_position + 1))),
+            '[' => return Ok(Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(current_position, current_position + 1))),
+            ']' => return Ok(Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(current_position, current_position + 1))),
+            ',' => return Ok(Token::spanned(SpannedTokenType::Comma, TextSpan::new(current_position, current_position + 1))),
+            '/' => return Ok(Token::spanned(SpannedTokenType::Slash, TextSpan::new(current_position, current_position + 1))),
+            ':' => return Ok(Token::spanned(SpannedTokenType::Colon, TextSpan::new(current_position, current_position + 1))),
+            _ => {}
+        }
+
+        Ok(Token::non_spanned(NonSpannedTokenType::End))
+    }
+}
+
+/// Tokenizes the input.
+///
+/// # Arguments
+/// - `input`: The input to tokenize.
+///
+/// # Returns
+/// An iterator over the tokens.
+pub fn tokenize<'a>(input: &'a str) -> Result<impl Iterator<Item = Token<'a>> + 'a, NonTerminatedStringLiteralError> {
+    let mut cursor = CharCursor::new(input);
+
+    Ok(std::iter::from_fn(move || match cursor.next_token() {
+        Ok(token) => Some(token),
+        Err(_) => None,
+    }))
 }
 
 #[cfg(test)]
@@ -362,7 +438,7 @@ mod tests {
     #[test]
     fn test_string_literal_token_display() {
         let string_literal_token = StringLiteralToken::new("test");
-        assert_eq!(format!("{}", string_literal_token), "\"test\"");
+        assert_eq!(format!("{}", string_literal_token), "test");
     }
 
     #[test]
@@ -406,7 +482,7 @@ mod tests {
         assert_eq!(format!("{}", spanned_token_type), "Identifier(test)");
 
         let spanned_token_type = SpannedTokenType::StringLiteral(StringLiteralToken::new("test"));
-        assert_eq!(format!("{}", spanned_token_type), "StringLiteral(\"test\")");
+        assert_eq!(format!("{}", spanned_token_type), "StringLiteral(test)");
     }
 
     #[test]
@@ -426,7 +502,7 @@ mod tests {
     #[test]
     fn test_spanned_token_display() {
         let spanned_token = SpannedToken::new(SpannedTokenType::Asterisk, TextSpan::new(0, 1));
-        assert_eq!(format!("{}", spanned_token), "* [0, 1]");
+        assert_eq!(format!("{}", spanned_token), "* [0, 1)");
     }
 
     #[test]
@@ -457,7 +533,7 @@ mod tests {
     #[test]
     fn test_text_span_display() {
         let text_span = TextSpan::new(0, 1);
-        assert_eq!(format!("{}", text_span), "[0, 1]");
+        assert_eq!(format!("{}", text_span), "[0, 1)");
     }
 
     #[test]
@@ -477,9 +553,107 @@ mod tests {
     #[test]
     fn test_token_display() {
         let token = Token::Spanned(SpannedToken::new(SpannedTokenType::Asterisk, TextSpan::new(0, 1)));
-        assert_eq!(format!("{}", token), "* [0, 1]");
+        assert_eq!(format!("{}", token), "* [0, 1)");
 
         let token = Token::NonSpanned(NonSpannedToken::new(NonSpannedTokenType::End));
         assert_eq!(format!("{}", token), "End");
+    }
+
+    #[test]
+    fn test_char_cursor_next_token_single_character() {
+        let mut char_cursor = CharCursor::new("*");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(0, 1)));
+
+        let mut char_cursor = CharCursor::new("=");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::spanned(SpannedTokenType::Equal, TextSpan::new(0, 1)));
+
+        let mut char_cursor = CharCursor::new("!");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(0, 1)));
+
+        let mut char_cursor = CharCursor::new("[");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(0, 1)));
+
+        let mut char_cursor = CharCursor::new("]");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(0, 1)));
+
+        let mut char_cursor = CharCursor::new(",");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::spanned(SpannedTokenType::Comma, TextSpan::new(0, 1)));
+
+        let mut char_cursor = CharCursor::new("/");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::spanned(SpannedTokenType::Slash, TextSpan::new(0, 1)));
+
+        let mut char_cursor = CharCursor::new(":");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::spanned(SpannedTokenType::Colon, TextSpan::new(0, 1)));
+    }
+
+    #[test]
+    fn test_char_cursor_next_token_end() {
+        let mut char_cursor = CharCursor::new("");
+        let token = char_cursor.next_token().unwrap();
+        assert_eq!(token, Token::non_spanned(NonSpannedTokenType::End));
+    }
+
+    #[test]
+    fn test_char_cursor_next_token_multiple_characters() {
+        let mut char_cursor = CharCursor::new("*![],/:");
+        let expected = [
+            Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(0, 1)),
+            Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(1, 2)),
+            Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(2, 3)),
+            Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(3, 4)),
+            Token::spanned(SpannedTokenType::Comma, TextSpan::new(4, 5)),
+            Token::spanned(SpannedTokenType::Slash, TextSpan::new(5, 6)),
+            Token::spanned(SpannedTokenType::Colon, TextSpan::new(6, 7)),
+        ];
+
+        for token in expected.iter() {
+            let next_token = char_cursor.next_token().unwrap();
+            assert_eq!(next_token, *token);
+        }
+    }
+
+    #[test]
+    fn test_char_cursor_next_token_with_whitespace() {
+        let mut char_cursor = CharCursor::new(" * ! [ ] , / : ");
+        let expected = [
+            Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(1, 2)),
+            Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(3, 4)),
+            Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(5, 6)),
+            Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(7, 8)),
+            Token::spanned(SpannedTokenType::Comma, TextSpan::new(9, 10)),
+            Token::spanned(SpannedTokenType::Slash, TextSpan::new(11, 12)),
+            Token::spanned(SpannedTokenType::Colon, TextSpan::new(13, 14)),
+        ];
+
+        for token in expected.iter() {
+            let next_token = char_cursor.next_token().unwrap();
+            assert_eq!(next_token, *token);
+        }
+    }
+
+    #[test]
+    fn test_tokenize() {
+        let input = "*![],/:";
+        let expected = [
+            Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(0, 1)),
+            Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(1, 2)),
+            Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(2, 3)),
+            Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(3, 4)),
+            Token::spanned(SpannedTokenType::Comma, TextSpan::new(4, 5)),
+            Token::spanned(SpannedTokenType::Slash, TextSpan::new(5, 6)),
+            Token::spanned(SpannedTokenType::Colon, TextSpan::new(6, 7)),
+            Token::non_spanned(NonSpannedTokenType::End),
+        ];
+
+        let tokens: Vec<Token> = tokenize(input).unwrap().collect();
+        assert_eq!(tokens, expected);
     }
 }
