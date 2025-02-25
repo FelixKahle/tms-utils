@@ -10,14 +10,14 @@ use std::{fmt::Display, iter::FusedIterator, str::Chars};
 /// consuming them, and also advance/consume them with `advance` or more
 /// specialized methods like `consume_while`.
 #[derive(Debug, Clone)]
-pub struct Cursor<'a> {
+pub struct CharCursor<'a> {
     /// The length of the remaining input.
     len_remaining: usize,
     /// The iterator over characters.
     chars: Chars<'a>,
 }
 
-impl<'a> Cursor<'a> {
+impl<'a> CharCursor<'a> {
     /// Creates a new `Cursor` from a string slice.
     ///
     /// # Arguments
@@ -26,7 +26,7 @@ impl<'a> Cursor<'a> {
     /// # Returns
     /// A new `Cursor` instance.
     pub fn new(input: &'a str) -> Self {
-        Cursor {
+        CharCursor {
             len_remaining: input.len(),
             chars: input.chars(),
         }
@@ -100,7 +100,7 @@ impl<'a> Cursor<'a> {
     }
 }
 
-impl Iterator for Cursor<'_> {
+impl Iterator for CharCursor<'_> {
     type Item = char;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -108,15 +108,15 @@ impl Iterator for Cursor<'_> {
     }
 }
 
-impl FusedIterator for Cursor<'_> {}
+impl FusedIterator for CharCursor<'_> {}
 
-impl<'a> From<&'a str> for Cursor<'a> {
+impl<'a> From<&'a str> for CharCursor<'a> {
     fn from(input: &'a str) -> Self {
-        Cursor::new(input)
+        CharCursor::new(input)
     }
 }
 
-impl Display for Cursor<'_> {
+impl Display for CharCursor<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Cursor({:?})", self.remaining_str())
     }
@@ -129,16 +129,16 @@ mod tests {
     /// Ensures that a new `Cursor` starts with all characters unconsumed,
     /// and that `remaining_str` is initially the entire input.
     #[test]
-    fn test_new_and_remaining_str() {
-        let cursor = Cursor::new("Hello");
+    fn test_char_cursor_new_and_remaining_str() {
+        let cursor = CharCursor::new("Hello");
         assert_eq!(cursor.remaining_str(), "Hello");
     }
 
     /// Tests that `peek_nth(0)` (i.e. `peek()`) does not consume the character
     /// and repeatedly returns the same result.
     #[test]
-    fn test_peek() {
-        let cursor = Cursor::new("Hello");
+    fn test_char_cursor_peek() {
+        let cursor = CharCursor::new("Hello");
         assert_eq!(cursor.peek(), Some('H'));
         // Repeated calls should return the same value, since we haven't advanced.
         assert_eq!(cursor.peek(), Some('H'));
@@ -150,8 +150,8 @@ mod tests {
     /// Verifies that `peek_nth(n)` returns the correct characters for various `n`,
     /// and returns `None` when `n` exceeds the remaining length.
     #[test]
-    fn test_peek_nth() {
-        let cursor = Cursor::new("Hello");
+    fn test_char_cursor_peek_nth() {
+        let cursor = CharCursor::new("Hello");
         assert_eq!(cursor.peek_nth(0), Some('H'));
         assert_eq!(cursor.peek_nth(1), Some('e'));
         assert_eq!(cursor.peek_nth(2), Some('l'));
@@ -164,8 +164,8 @@ mod tests {
     /// Shows that `advance` consumes one character at a time
     /// and that `peek` reflects the new position afterward.
     #[test]
-    fn test_next() {
-        let mut cursor = Cursor::new("Hello");
+    fn test_char_cursor_next() {
+        let mut cursor = CharCursor::new("Hello");
         assert_eq!(cursor.next(), Some('H'));
         // Now the cursor should be at 'e'
         assert_eq!(cursor.peek(), Some('e'));
@@ -186,9 +186,9 @@ mod tests {
 
     /// Checks that `consumed_bytes` tracks the total bytes consumed correctly.
     #[test]
-    fn test_consumed_bytes() {
-        let mut cursor = Cursor::new("αβγ"); // each char may be multiple bytes in UTF-8
-                                             // initially zero
+    fn test_char_cursor_consumed_bytes() {
+        let mut cursor = CharCursor::new("αβγ"); // each char may be multiple bytes in UTF-8
+                                                 // initially zero
         assert_eq!(cursor.consumed_bytes(), 0);
 
         // Advance one character (in UTF-8, 'α' is 2 bytes, but from the cursor's viewpoint,
@@ -217,8 +217,8 @@ mod tests {
     /// Ensures that `reset_consumed_bytes` sets the count back to 0
     /// but does not revert the cursor's actual position.
     #[test]
-    fn test_reset_consumed_bytes() {
-        let mut cursor = Cursor::new("Hello");
+    fn test_char_cursor_reset_consumed_bytes() {
+        let mut cursor = CharCursor::new("Hello");
         // Consume 'H' (1 byte)
         cursor.next();
         assert_eq!(cursor.consumed_bytes(), 1);
@@ -233,8 +233,8 @@ mod tests {
     /// Validates that `consume_while` advances the cursor for all matching characters
     /// as defined by the predicate, stopping at the first mismatch.
     #[test]
-    fn test_consume_while() {
-        let mut cursor = Cursor::new("123abc");
+    fn test_char_cursor_consume_while() {
+        let mut cursor = CharCursor::new("123abc");
 
         // consume all digits at the beginning
         cursor.consume_while(|c| c.is_ascii_digit());
@@ -249,8 +249,8 @@ mod tests {
     /// Ensures that `consume_until` advances the cursor up until (but not including)
     /// the specified byte, or to the end if the byte is not found.
     #[test]
-    fn test_consume_until() {
-        let mut cursor = Cursor::new("Hello, world!");
+    fn test_char_cursor_consume_until() {
+        let mut cursor = CharCursor::new("Hello, world!");
 
         // Move until the comma
         cursor.consume_until(b',');
@@ -265,8 +265,8 @@ mod tests {
 
     /// Test to ensure edge cases work as expected with an empty string.
     #[test]
-    fn test_empty_string() {
-        let mut cursor = Cursor::new("");
+    fn test_char_cursor_empty_string() {
+        let mut cursor = CharCursor::new("");
 
         assert_eq!(cursor.remaining_str(), "");
         assert_eq!(cursor.peek(), None);
@@ -282,8 +282,8 @@ mod tests {
 
     /// Test to ensure single-character input is handled properly.
     #[test]
-    fn test_single_character() {
-        let mut cursor = Cursor::new("X");
+    fn test_char_cursor_single_character() {
+        let mut cursor = CharCursor::new("X");
 
         // Immediately upon creation
         assert_eq!(cursor.remaining_str(), "X");
@@ -306,20 +306,20 @@ mod tests {
     }
 
     #[test]
-    fn test_from_str() {
-        let cursor: Cursor = "Hello".into();
+    fn test_char_cursor_from_str() {
+        let cursor: CharCursor = "Hello".into();
         assert_eq!(cursor.remaining_str(), "Hello");
     }
 
     #[test]
-    fn test_display() {
-        let cursor = Cursor::new("Hello");
+    fn test_char_cursor_display() {
+        let cursor = CharCursor::new("Hello");
         assert_eq!(format!("{}", cursor), "Cursor(\"Hello\")");
     }
 
     #[test]
-    fn test_iterator() {
-        let mut cursor = Cursor::new("Hello");
+    fn test_char_cursor_iterator() {
+        let mut cursor = CharCursor::new("Hello");
         assert_eq!(cursor.next(), Some('H'));
         assert_eq!(cursor.next(), Some('e'));
         assert_eq!(cursor.next(), Some('l'));
@@ -327,7 +327,7 @@ mod tests {
         assert_eq!(cursor.next(), Some('o'));
         assert_eq!(cursor.next(), None);
 
-        let cursor = Cursor::new("Hello");
+        let cursor = CharCursor::new("Hello");
         let expected = ['H', 'e', 'l', 'l', 'o'];
         for (i, c) in cursor.enumerate() {
             assert_eq!(c, expected[i]);
