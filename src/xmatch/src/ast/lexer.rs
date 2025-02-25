@@ -380,22 +380,6 @@ impl<'a> CharCursor<'a> {
     }
 }
 
-/// Tokenizes the input.
-///
-/// # Arguments
-/// - `input`: The input to tokenize.
-///
-/// # Returns
-/// An iterator over the tokens.
-pub fn tokenize<'a>(input: &'a str) -> Result<impl Iterator<Item = Token<'a>> + 'a, NonTerminatedStringLiteralError> {
-    let mut cursor = CharCursor::new(input);
-
-    Ok(std::iter::from_fn(move || match cursor.next_token() {
-        Ok(token) => Some(token),
-        Err(_) => None,
-    }))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -612,6 +596,7 @@ mod tests {
             Token::spanned(SpannedTokenType::Comma, TextSpan::new(4, 5)),
             Token::spanned(SpannedTokenType::Slash, TextSpan::new(5, 6)),
             Token::spanned(SpannedTokenType::Colon, TextSpan::new(6, 7)),
+            Token::non_spanned(NonSpannedTokenType::End),
         ];
 
         for token in expected.iter() {
@@ -631,29 +616,12 @@ mod tests {
             Token::spanned(SpannedTokenType::Comma, TextSpan::new(9, 10)),
             Token::spanned(SpannedTokenType::Slash, TextSpan::new(11, 12)),
             Token::spanned(SpannedTokenType::Colon, TextSpan::new(13, 14)),
+            Token::non_spanned(NonSpannedTokenType::End),
         ];
 
         for token in expected.iter() {
             let next_token = char_cursor.next_token().unwrap();
             assert_eq!(next_token, *token);
         }
-    }
-
-    #[test]
-    fn test_tokenize() {
-        let input = "*![],/:";
-        let expected = [
-            Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(0, 1)),
-            Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(1, 2)),
-            Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(2, 3)),
-            Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(3, 4)),
-            Token::spanned(SpannedTokenType::Comma, TextSpan::new(4, 5)),
-            Token::spanned(SpannedTokenType::Slash, TextSpan::new(5, 6)),
-            Token::spanned(SpannedTokenType::Colon, TextSpan::new(6, 7)),
-            Token::non_spanned(NonSpannedTokenType::End),
-        ];
-
-        let tokens: Vec<Token> = tokenize(input).unwrap().collect();
-        assert_eq!(tokens, expected);
     }
 }
