@@ -2,3 +2,4 @@
 
 mod cursor;
 mod lexer;
+mod range;

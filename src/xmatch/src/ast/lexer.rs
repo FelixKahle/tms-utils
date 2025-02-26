@@ -2,476 +2,159 @@
 
 #![allow(dead_code)]
 
-use std::{borrow::Cow, fmt::Display};
+use std::fmt::Display;
 
-use super::cursor::CharCursor;
-
-/// An identifier token.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IdentifierToken<'a> {
-    /// The name of the identifier.
-    name: Cow<'a, str>,
-}
-
-impl<'a> IdentifierToken<'a> {
-    /// Creates a new identifier token.
-    ///
-    /// # Type Parameters
-    /// - `N`: The type of the name of the identifier.
-    ///
-    /// # Arguments
-    /// - `name`: The name of the identifier.
-    ///
-    /// # Returns
-    /// A new identifier token.
-    pub fn new<N: Into<Cow<'a, str>>>(name: N) -> Self {
-        Self { name: name.into() }
-    }
-
-    /// Returns the name of the identifier.
-    ///
-    /// # Returns
-    /// The name of the identifier.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl Display for IdentifierToken<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name)
-    }
-}
-
-impl<'a, T: Into<Cow<'a, str>>> From<T> for IdentifierToken<'a> {
-    fn from(name: T) -> Self {
-        Self::new(name)
-    }
-}
-
-/// A string literal token.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StringLiteralToken<'a> {
-    /// The value of the string literal.
-    value: Cow<'a, str>,
-}
-
-impl<'a> StringLiteralToken<'a> {
-    /// Creates a new string literal token.
-    ///
-    /// # Type Parameters
-    /// - `V`: The type of the value of the string literal.
-    ///
-    /// # Arguments
-    /// - `value`: The value of the string literal.
-    ///
-    /// # Returns
-    /// A new string literal token.
-    pub fn new<V: Into<Cow<'a, str>>>(value: V) -> Self {
-        Self { value: value.into() }
-    }
-
-    /// Returns the value of the string literal.
-    ///
-    /// # Returns
-    /// The value of the string literal.
-    pub fn value(&self) -> &str {
-        &self.value
-    }
-}
-
-impl Display for StringLiteralToken<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl<'a, T: Into<Cow<'a, str>>> From<T> for StringLiteralToken<'a> {
-    fn from(value: T) -> Self {
-        Self::new(value)
-    }
-}
-
-/// A spanned token type represents a token type with a text span.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SpannedTokenType<'a> {
-    Identifier(IdentifierToken<'a>),
+/// The different ranged token kinds.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum RangedTokenKind {
     Asterisk,
     Equal,
+    ForwardSlash,
     ExclamationMark,
+    Comma,
+    Colon,
     SquareBracketOpen,
     SquareBracketClose,
-    Comma,
-    Slash,
-    Colon,
-    StringLiteral(StringLiteralToken<'a>),
+    Identifier,
+    StringLiteral,
+    WhiteSpace,
 }
 
-impl<'a> Display for SpannedTokenType<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for RangedTokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            SpannedTokenType::Asterisk => write!(f, "*"),
-            SpannedTokenType::Equal => write!(f, "="),
-            SpannedTokenType::ExclamationMark => write!(f, "!"),
-            SpannedTokenType::SquareBracketOpen => write!(f, "["),
-            SpannedTokenType::SquareBracketClose => write!(f, "]"),
-            SpannedTokenType::Comma => write!(f, ","),
-            SpannedTokenType::Slash => write!(f, "/"),
-            SpannedTokenType::Colon => write!(f, ":"),
-            SpannedTokenType::Identifier(identifier_token) => write!(f, "Identifier({})", identifier_token),
-            SpannedTokenType::StringLiteral(string_literal_token) => write!(f, "StringLiteral({})", string_literal_token),
+            RangedTokenKind::Asterisk => write!(f, "Asterisk"),
+            RangedTokenKind::Equal => write!(f, "Equal"),
+            RangedTokenKind::ForwardSlash => write!(f, "Forward Slash"),
+            RangedTokenKind::ExclamationMark => write!(f, "Exclamation Mark"),
+            RangedTokenKind::Comma => write!(f, "Comma"),
+            RangedTokenKind::Colon => write!(f, "Colon"),
+            RangedTokenKind::SquareBracketOpen => write!(f, "Square Bracket Open"),
+            RangedTokenKind::SquareBracketClose => write!(f, "Square Bracket Close"),
+            RangedTokenKind::Identifier => write!(f, "Identifier"),
+            RangedTokenKind::StringLiteral => write!(f, "String Literal"),
+            RangedTokenKind::WhiteSpace => write!(f, "Whitespace"),
         }
     }
 }
 
-/// A non-spanned token type represents a token type without a text span.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum NonSpannedTokenType {
+/// The different unranged token kinds.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum UnrangedTokenKind {
     End,
 }
 
-impl Display for NonSpannedTokenType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for UnrangedTokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            NonSpannedTokenType::End => write!(f, "End"),
+            UnrangedTokenKind::End => write!(f, "End"),
         }
     }
 }
 
-/// The token represents a token in the source code.
+/// A token with a range in the input string.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TextSpan {
-    /// The start of the text span.
-    start: usize,
+pub struct RangedToken {
+    /// The kind of the token.
+    kind: RangedTokenKind,
 
-    /// The end of the text span.
-    end: usize,
+    /// The range of the token in the input string.
+    range: crate::ast::range::Range<usize>,
 }
 
-impl TextSpan {
-    /// Creates a new text span.
+impl RangedToken {
+    /// Create a new ranged token.
     ///
     /// # Arguments
-    /// - `start`: The start of the text span.
-    /// - `end`: The end of the text span.
+    /// - `kind`: The kind of the token.
+    /// - `range`: The range of the token in the input string.
     ///
     /// # Returns
-    /// A new text span.
-    pub fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
+    /// A new ranged token.
+    pub fn new(kind: RangedTokenKind, range: crate::ast::range::Range<usize>) -> Self {
+        Self { kind, range }
     }
 
-    /// Returns the start of the text span.
+    /// Get the kind of the token.
     ///
     /// # Returns
-    /// The start of the text span.
-    pub fn start(&self) -> usize {
-        self.start
+    /// The kind of the token.
+    pub fn kind(&self) -> RangedTokenKind {
+        self.kind
     }
 
-    /// Returns the end of the text span.
+    /// Get the range of the token in the input string.
     ///
     /// # Returns
-    /// The end of the text span.
-    pub fn end(&self) -> usize {
-        self.end
+    /// The range of the token in the input string.
+    pub fn range(&self) -> &crate::ast::range::Range<usize> {
+        &self.range
     }
 
-    /// Returns the length of the text span.
+    /// Get the length of the token.
     ///
     /// # Returns
-    /// The length of the text span.
-    pub fn length(&self) -> usize {
-        self.end - self.start
+    /// The length of the token.
+    pub fn len(&self) -> usize {
+        self.range.len()
     }
 }
 
-impl Display for TextSpan {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}, {})", self.start, self.end)
+impl Display for RangedToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}[{}]", self.kind, self.range)
     }
 }
 
-impl Default for TextSpan {
-    fn default() -> Self {
-        Self::new(0, 0)
-    }
-}
-
-/// A spanned token represents a token with a text span.
+/// A token without a range in the input string.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SpannedToken<'a> {
-    /// The type of the token.
-    token: SpannedTokenType<'a>,
-
-    /// The text span of the token.
-    text_span: TextSpan,
+pub struct UnrangedToken {
+    /// The unranged token kind.
+    pub kind: UnrangedTokenKind,
 }
 
-impl<'a> SpannedToken<'a> {
-    /// Creates a new spanned token.
+impl UnrangedToken {
+    /// Create a new unranged token.
     ///
     /// # Arguments
-    /// - `token`: The type of the token.
-    /// - `text_span`: The text span of the token.
+    /// - `kind`: The kind of the token.
     ///
     /// # Returns
-    /// A new spanned token.
-    pub fn new(token: SpannedTokenType<'a>, text_span: TextSpan) -> Self {
-        Self { token, text_span }
+    /// A new unranged token.
+    pub fn new(kind: UnrangedTokenKind) -> Self {
+        Self { kind }
     }
 
-    /// Returns the type of the token.
+    /// Get the kind of the token.
     ///
     /// # Returns
-    /// The type of the token.
-    pub fn token(&self) -> &SpannedTokenType<'a> {
-        &self.token
-    }
-
-    /// Returns the text span of the token.
-    ///
-    /// # Returns
-    /// The text span of the token.
-    pub fn text_span(&self) -> &TextSpan {
-        &self.text_span
+    /// The kind of the token.
+    pub fn kind(&self) -> UnrangedTokenKind {
+        self.kind
     }
 }
 
-impl Display for SpannedToken<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", self.token, self.text_span)
+impl Display for UnrangedToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.kind)
     }
 }
 
-/// A non-spanned token represents a token without a text span.
+/// A token produced by the lexer.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NonSpannedToken {
-    /// The type of the token.
-    token: NonSpannedTokenType,
+pub enum Token {
+    /// A token with a range in the input string.
+    Ranged(RangedToken),
+
+    /// A token without a range in the input string.
+    Unranged(UnrangedToken),
 }
 
-impl NonSpannedToken {
-    /// Creates a new non-spanned token.
-    ///
-    /// # Arguments
-    /// - `token`: The type of the token.
-    ///
-    /// # Returns
-    /// A new non-spanned token.
-    pub fn new(token: NonSpannedTokenType) -> Self {
-        Self { token }
-    }
-
-    /// Returns the type of the token.
-    ///
-    /// # Returns
-    /// The type of the token.
-    pub fn token(&self) -> &NonSpannedTokenType {
-        &self.token
-    }
-}
-
-impl Display for NonSpannedToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.token)
-    }
-}
-
-/// A token.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Token<'a> {
-    /// A spanned token.
-    Spanned(SpannedToken<'a>),
-
-    /// A non-spanned token.
-    NonSpanned(NonSpannedToken),
-}
-
-impl<'a> From<SpannedToken<'a>> for Token<'a> {
-    fn from(spanned_token: SpannedToken<'a>) -> Self {
-        Token::Spanned(spanned_token)
-    }
-}
-
-impl From<NonSpannedToken> for Token<'_> {
-    fn from(non_spanned_token: NonSpannedToken) -> Self {
-        Token::NonSpanned(non_spanned_token)
-    }
-}
-
-impl<'a> Token<'a> {
-    /// Creates a new spanned token.
-    ///
-    /// # Arguments
-    /// - `token_type`: The type of the token.
-    /// - `text_span`: The text span of the token.
-    ///
-    /// # Returns
-    /// A new spanned token.
-    pub fn spanned(token_type: SpannedTokenType<'a>, text_span: TextSpan) -> Self {
-        Token::Spanned(SpannedToken::new(token_type, text_span))
-    }
-
-    /// Creates a new non-spanned token.
-    ///
-    /// # Arguments
-    /// - `token_type`: The type of the token.
-    ///
-    /// # Returns
-    /// A new non-spanned token.
-    pub fn non_spanned(token_type: NonSpannedTokenType) -> Self {
-        Token::NonSpanned(NonSpannedToken::new(token_type))
-    }
-}
-
-impl Display for Token<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Spanned(spanned_token) => write!(f, "{}", spanned_token),
-            Token::NonSpanned(non_spanned_token) => write!(f, "{}", non_spanned_token),
-        }
-    }
-}
-
-/// An error that occurs when a non-expected character is encountered.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NonExpectedCharacterError {
-    /// The character that was encountered.
-    character: char,
-}
-
-impl NonExpectedCharacterError {
-    /// Creates a new non-expected character error.
-    ///
-    /// # Arguments
-    /// - `character`: The character that was encountered.
-    ///
-    /// # Returns
-    /// A new non-expected character error.
-    pub fn new(character: char) -> Self {
-        Self { character }
-    }
-
-    /// Returns the character that was encountered.
-    ///
-    /// # Returns
-    /// The character that was encountered.
-    pub fn character(&self) -> char {
-        self.character
-    }
-}
-
-impl Display for NonExpectedCharacterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Non-expected character: '{}'", self.character)
-    }
-}
-
-impl std::error::Error for NonExpectedCharacterError {}
-
-/// An error that occurs when a non-terminated string literal is encountered.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NonTerminatedStringLiteralError;
-
-impl Display for NonTerminatedStringLiteralError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Non-terminated string literal")
-    }
-}
-
-impl std::error::Error for NonTerminatedStringLiteralError {}
-
-/// An error that occurs when tokenizing the input.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TokenizerError {
-    /// A non-expected character error.
-    NonExpectedCharacter(NonExpectedCharacterError),
-
-    /// A non-terminated string literal error.
-    NonTerminatedStringLiteral(NonTerminatedStringLiteralError),
-}
-
-impl Display for TokenizerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TokenizerError::NonExpectedCharacter(error) => write!(f, "{}", error),
-            TokenizerError::NonTerminatedStringLiteral(error) => write!(f, "{}", error),
-        }
-    }
-}
-
-impl std::error::Error for TokenizerError {}
-
-impl From<NonExpectedCharacterError> for TokenizerError {
-    fn from(error: NonExpectedCharacterError) -> Self {
-        TokenizerError::NonExpectedCharacter(error)
-    }
-}
-
-impl From<NonTerminatedStringLiteralError> for TokenizerError {
-    fn from(error: NonTerminatedStringLiteralError) -> Self {
-        TokenizerError::NonTerminatedStringLiteral(error)
-    }
-}
-
-/// Returns `true` if `c` is valid as a first character of an identifier.
-/// See [Rust language reference](https://doc.rust-lang.org/reference/identifiers.html) for
-/// a formal definition of valid identifier name.
-///
-/// # Arguments
-/// - `c`: The character to check.
-///
-/// # Returns
-/// True if `c` is valid as a first character of an identifier.
-fn is_id_start(c: char) -> bool {
-    // This is XID_Start OR '_' (which formally is not a XID_Start).
-    c == '_' || unicode_xid::UnicodeXID::is_xid_start(c)
-}
-
-/// Returns `true if `c` is valid as a non-first character of an identifier.
-/// See [Rust language reference](https://doc.rust-lang.org/reference/identifiers.html) for
-/// a formal definition of valid identifier name.
-///
-/// # Arguments
-/// - `c`: The character to check.
-///
-/// # Returns
-/// True if `c` is valid as a non-first character of an identifier.
-pub fn is_id_continue(c: char) -> bool {
-    unicode_xid::UnicodeXID::is_xid_continue(c)
-}
-
-impl<'a> CharCursor<'a> {
-    /// Returns the next token from the input.
-    ///
-    /// This moves the cursor to the next non-whitespace character.
-    ///
-    /// # Returns
-    /// The next token from the input.
-    fn next_token(&mut self) -> Result<Token<'a>, TokenizerError> {
-        // This moves the cursor to the next non-whitespace character.
-        self.consume_while(crate::utils::str::is_whitespace);
-
-        // Get the current position of the cursor and the next character.
-        let current_position = self.consumed_chars();
-        let next_char = match self.next() {
-            Some(next_char) => next_char,
-            None => return Ok(Token::non_spanned(NonSpannedTokenType::End)),
-        };
-
-        match next_char {
-            '*' => return Ok(Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(current_position, current_position + 1))),
-            '=' => return Ok(Token::spanned(SpannedTokenType::Equal, TextSpan::new(current_position, current_position + 1))),
-            '!' => return Ok(Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(current_position, current_position + 1))),
-            '[' => return Ok(Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(current_position, current_position + 1))),
-            ']' => return Ok(Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(current_position, current_position + 1))),
-            ',' => return Ok(Token::spanned(SpannedTokenType::Comma, TextSpan::new(current_position, current_position + 1))),
-            '/' => return Ok(Token::spanned(SpannedTokenType::Slash, TextSpan::new(current_position, current_position + 1))),
-            ':' => return Ok(Token::spanned(SpannedTokenType::Colon, TextSpan::new(current_position, current_position + 1))),
-            '"' => todo!(),
-            c if is_id_start(c) => todo!(),
-            _ => return Err(TokenizerError::NonExpectedCharacter(NonExpectedCharacterError::new(next_char))),
+            Token::Ranged(token) => write!(f, "{}", token),
+            Token::Unranged(token) => write!(f, "{}", token),
         }
     }
 }
@@ -481,250 +164,63 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_identifier_token_new() {
-        let identifier_token = IdentifierToken::new("test");
-        assert_eq!(identifier_token.name(), "test");
-
-        let identifier_token: IdentifierToken = "test".into();
-        assert_eq!(identifier_token.name(), "test");
+    fn test_ranged_token_kind_display() {
+        assert_eq!(format!("{}", RangedTokenKind::Asterisk), "Asterisk");
+        assert_eq!(format!("{}", RangedTokenKind::Equal), "Equal");
+        assert_eq!(format!("{}", RangedTokenKind::ForwardSlash), "Forward Slash");
+        assert_eq!(format!("{}", RangedTokenKind::ExclamationMark), "Exclamation Mark");
+        assert_eq!(format!("{}", RangedTokenKind::Comma), "Comma");
+        assert_eq!(format!("{}", RangedTokenKind::Colon), "Colon");
+        assert_eq!(format!("{}", RangedTokenKind::SquareBracketOpen), "Square Bracket Open");
+        assert_eq!(format!("{}", RangedTokenKind::SquareBracketClose), "Square Bracket Close");
+        assert_eq!(format!("{}", RangedTokenKind::Identifier), "Identifier");
+        assert_eq!(format!("{}", RangedTokenKind::StringLiteral), "String Literal");
+        assert_eq!(format!("{}", RangedTokenKind::WhiteSpace), "Whitespace");
     }
 
     #[test]
-    fn test_identifier_token_display() {
-        let identifier_token = IdentifierToken::new("test");
-        assert_eq!(format!("{}", identifier_token), "test");
+    fn test_unranged_token_kind_display() {
+        assert_eq!(format!("{}", UnrangedTokenKind::End), "End");
     }
 
     #[test]
-    fn test_identifier_token_to_owned() {
-        fn produce_owned_identifier_token() -> IdentifierToken<'static> {
-            let owned_string = "test".to_owned();
-            IdentifierToken::new(owned_string)
-        }
-
-        let identifier_token = produce_owned_identifier_token();
-        assert_eq!(identifier_token.name(), "test");
+    fn test_ranged_token_new() {
+        let token = RangedToken::new(RangedTokenKind::Asterisk, crate::ast::range::Range::new(0, 1));
+        assert_eq!(token.kind(), RangedTokenKind::Asterisk);
+        assert_eq!(token.range().start, 0);
+        assert_eq!(token.range().end, 1);
     }
 
     #[test]
-    fn test_string_literal_token_new() {
-        let string_literal_token = StringLiteralToken::new("test");
-        assert_eq!(string_literal_token.value(), "test");
-
-        let string_literal_token: StringLiteralToken = "test".into();
-        assert_eq!(string_literal_token.value(), "test");
+    fn test_ranged_token_display() {
+        let token = RangedToken::new(RangedTokenKind::Asterisk, crate::ast::range::Range::new(0, 1));
+        assert_eq!(format!("{}", token), "Asterisk[0..1]");
     }
 
     #[test]
-    fn test_string_literal_token_display() {
-        let string_literal_token = StringLiteralToken::new("test");
-        assert_eq!(format!("{}", string_literal_token), "test");
+    fn test_ranged_token_len() {
+        let token = RangedToken::new(RangedTokenKind::Asterisk, crate::ast::range::Range::new(0, 11));
+        assert_eq!(token.len(), 11);
     }
 
     #[test]
-    fn test_string_literal_token_to_owned() {
-        fn produce_owned_string_literal_token() -> StringLiteralToken<'static> {
-            let owned_string = "test".to_owned();
-            StringLiteralToken::new(owned_string)
-        }
-
-        let string_literal_token = produce_owned_string_literal_token();
-        assert_eq!(string_literal_token.value(), "test");
+    fn test_unranged_token_new() {
+        let token = UnrangedToken::new(UnrangedTokenKind::End);
+        assert_eq!(token.kind(), UnrangedTokenKind::End);
     }
 
     #[test]
-    fn test_spanned_token_type_display() {
-        let spanned_token_type = SpannedTokenType::Asterisk;
-        assert_eq!(format!("{}", spanned_token_type), "*");
-
-        let spanned_token_type = SpannedTokenType::Equal;
-        assert_eq!(format!("{}", spanned_token_type), "=");
-
-        let spanned_token_type = SpannedTokenType::ExclamationMark;
-        assert_eq!(format!("{}", spanned_token_type), "!");
-
-        let spanned_token_type = SpannedTokenType::SquareBracketOpen;
-        assert_eq!(format!("{}", spanned_token_type), "[");
-
-        let spanned_token_type = SpannedTokenType::SquareBracketClose;
-        assert_eq!(format!("{}", spanned_token_type), "]");
-
-        let spanned_token_type = SpannedTokenType::Comma;
-        assert_eq!(format!("{}", spanned_token_type), ",");
-
-        let spanned_token_type = SpannedTokenType::Slash;
-        assert_eq!(format!("{}", spanned_token_type), "/");
-
-        let spanned_token_type = SpannedTokenType::Colon;
-        assert_eq!(format!("{}", spanned_token_type), ":");
-
-        let spanned_token_type = SpannedTokenType::Identifier(IdentifierToken::new("test"));
-        assert_eq!(format!("{}", spanned_token_type), "Identifier(test)");
-
-        let spanned_token_type = SpannedTokenType::StringLiteral(StringLiteralToken::new("test"));
-        assert_eq!(format!("{}", spanned_token_type), "StringLiteral(test)");
-    }
-
-    #[test]
-    fn test_non_spanned_token_type_display() {
-        let non_spanned_token_type = NonSpannedTokenType::End;
-        assert_eq!(format!("{}", non_spanned_token_type), "End");
-    }
-
-    #[test]
-    fn test_spanned_token_new() {
-        let spanned_token = SpannedToken::new(SpannedTokenType::Asterisk, TextSpan::new(0, 1));
-        assert_eq!(spanned_token.token(), &SpannedTokenType::Asterisk);
-        assert_eq!(spanned_token.text_span().start(), 0);
-        assert_eq!(spanned_token.text_span().end(), 1);
-    }
-
-    #[test]
-    fn test_spanned_token_display() {
-        let spanned_token = SpannedToken::new(SpannedTokenType::Asterisk, TextSpan::new(0, 1));
-        assert_eq!(format!("{}", spanned_token), "* [0, 1)");
-    }
-
-    #[test]
-    fn test_non_spanned_token_new() {
-        let non_spanned_token = NonSpannedToken::new(NonSpannedTokenType::End);
-        assert_eq!(non_spanned_token.token(), &NonSpannedTokenType::End);
-    }
-
-    #[test]
-    fn test_non_spanned_token_display() {
-        let non_spanned_token = NonSpannedToken::new(NonSpannedTokenType::End);
-        assert_eq!(format!("{}", non_spanned_token), "End");
-    }
-
-    #[test]
-    fn test_text_span_new() {
-        let text_span = TextSpan::new(0, 1);
-        assert_eq!(text_span.start(), 0);
-        assert_eq!(text_span.end(), 1);
-    }
-
-    #[test]
-    fn test_text_span_length() {
-        let text_span = TextSpan::new(0, 1);
-        assert_eq!(text_span.length(), 1);
-    }
-
-    #[test]
-    fn test_text_span_display() {
-        let text_span = TextSpan::new(0, 1);
-        assert_eq!(format!("{}", text_span), "[0, 1)");
-    }
-
-    #[test]
-    fn test_token_spanned() {
-        let token = Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(0, 1));
-        let expected = Token::Spanned(SpannedToken::new(SpannedTokenType::Asterisk, TextSpan::new(0, 1)));
-        assert_eq!(token, expected);
-    }
-
-    #[test]
-    fn test_token_non_spanned() {
-        let token = Token::non_spanned(NonSpannedTokenType::End);
-        let expected = Token::NonSpanned(NonSpannedToken::new(NonSpannedTokenType::End));
-        assert_eq!(token, expected);
-    }
-
-    #[test]
-    fn test_token_display() {
-        let token = Token::Spanned(SpannedToken::new(SpannedTokenType::Asterisk, TextSpan::new(0, 1)));
-        assert_eq!(format!("{}", token), "* [0, 1)");
-
-        let token = Token::NonSpanned(NonSpannedToken::new(NonSpannedTokenType::End));
+    fn test_unranged_token_display() {
+        let token = UnrangedToken::new(UnrangedTokenKind::End);
         assert_eq!(format!("{}", token), "End");
     }
 
     #[test]
-    fn test_char_cursor_next_token_single_character() {
-        let mut char_cursor = CharCursor::new("*");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(0, 1)));
+    fn test_token_display() {
+        let ranged_token = Token::Ranged(RangedToken::new(RangedTokenKind::Asterisk, crate::ast::range::Range::new(0, 1)));
+        assert_eq!(format!("{}", ranged_token), "Asterisk[0..1]");
 
-        let mut char_cursor = CharCursor::new("=");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::spanned(SpannedTokenType::Equal, TextSpan::new(0, 1)));
-
-        let mut char_cursor = CharCursor::new("!");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(0, 1)));
-
-        let mut char_cursor = CharCursor::new("[");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(0, 1)));
-
-        let mut char_cursor = CharCursor::new("]");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(0, 1)));
-
-        let mut char_cursor = CharCursor::new(",");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::spanned(SpannedTokenType::Comma, TextSpan::new(0, 1)));
-
-        let mut char_cursor = CharCursor::new("/");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::spanned(SpannedTokenType::Slash, TextSpan::new(0, 1)));
-
-        let mut char_cursor = CharCursor::new(":");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::spanned(SpannedTokenType::Colon, TextSpan::new(0, 1)));
-    }
-
-    #[test]
-    fn test_char_cursor_next_token_end() {
-        let mut char_cursor = CharCursor::new("");
-        let token = char_cursor.next_token().unwrap();
-        assert_eq!(token, Token::non_spanned(NonSpannedTokenType::End));
-    }
-
-    #[test]
-    fn test_char_cursor_next_token_multiple_characters() {
-        let mut char_cursor = CharCursor::new("*![],/:");
-        let expected = [
-            Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(0, 1)),
-            Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(1, 2)),
-            Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(2, 3)),
-            Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(3, 4)),
-            Token::spanned(SpannedTokenType::Comma, TextSpan::new(4, 5)),
-            Token::spanned(SpannedTokenType::Slash, TextSpan::new(5, 6)),
-            Token::spanned(SpannedTokenType::Colon, TextSpan::new(6, 7)),
-            Token::non_spanned(NonSpannedTokenType::End),
-        ];
-
-        for token in expected.iter() {
-            let next_token = char_cursor.next_token().unwrap();
-            assert_eq!(next_token, *token);
-        }
-    }
-
-    #[test]
-    fn test_char_cursor_next_token_with_whitespace() {
-        let mut char_cursor = CharCursor::new(" * ! [ ] , / : ");
-        let expected = [
-            Token::spanned(SpannedTokenType::Asterisk, TextSpan::new(1, 2)),
-            Token::spanned(SpannedTokenType::ExclamationMark, TextSpan::new(3, 4)),
-            Token::spanned(SpannedTokenType::SquareBracketOpen, TextSpan::new(5, 6)),
-            Token::spanned(SpannedTokenType::SquareBracketClose, TextSpan::new(7, 8)),
-            Token::spanned(SpannedTokenType::Comma, TextSpan::new(9, 10)),
-            Token::spanned(SpannedTokenType::Slash, TextSpan::new(11, 12)),
-            Token::spanned(SpannedTokenType::Colon, TextSpan::new(13, 14)),
-            Token::non_spanned(NonSpannedTokenType::End),
-        ];
-
-        for token in expected.iter() {
-            let next_token = char_cursor.next_token().unwrap();
-            assert_eq!(next_token, *token);
-        }
-    }
-
-    #[test]
-    fn test_char_cursor_next_token_non_expected_character() {
-        let mut char_cursor = CharCursor::new("?");
-        let error = char_cursor.next_token().unwrap_err();
-        assert_eq!(error.to_string(), "Non-expected character: '?'");
+        let unranged_token = Token::Unranged(UnrangedToken::new(UnrangedTokenKind::End));
+        assert_eq!(format!("{}", unranged_token), "End");
     }
 }
