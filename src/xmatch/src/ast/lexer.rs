@@ -150,12 +150,131 @@ pub enum Token {
     Unspanned(UnspannedToken),
 }
 
+impl Token {
+    /// Return `true` if the token is an end token.
+    ///
+    /// # Returns
+    /// `true` if the token is an end token, `false` otherwise.
+    #[inline]
+    pub fn is_end(&self) -> bool {
+        match self {
+            Token::Unspanned(token) => matches!(token.kind(), UnspannedTokenKind::End),
+            _ => false,
+        }
+    }
+}
+
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Token::Spanned(token) => write!(f, "{}", token),
             Token::Unspanned(token) => write!(f, "{}", token),
         }
+    }
+}
+
+/// An error indicating that a string literal was not terminated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnterminatedStringLiteralError {
+    /// The span of the unterminated string literal.
+    span: Span<usize>,
+}
+
+impl UnterminatedStringLiteralError {
+    /// Create a new unterminated string literal error.
+    ///
+    /// # Arguments
+    /// - `span`: The span of the unterminated string literal.
+    ///
+    /// # Returns
+    /// A new unterminated string literal error.
+    pub fn new(span: Span<usize>) -> Self {
+        Self { span }
+    }
+
+    /// Get the span of the unterminated string literal.
+    ///
+    /// # Returns
+    /// The span of the unterminated string literal.
+    pub fn span(&self) -> &Span<usize> {
+        &self.span
+    }
+}
+
+impl Display for UnterminatedStringLiteralError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Unterminated string literal at {}", self.span)
+    }
+}
+
+impl std::error::Error for UnterminatedStringLiteralError {}
+
+/// An error indicating that an unexpected character was encountered.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnexpectedCharacterError {
+    /// The span of the unexpected character.
+    span: Span<usize>,
+}
+
+impl UnexpectedCharacterError {
+    /// Create a new unexpected character error.
+    ///
+    /// # Arguments
+    /// - `span`: The span of the unexpected character.
+    ///
+    /// # Returns
+    /// A new unexpected character error.
+    pub fn new(span: Span<usize>) -> Self {
+        Self { span }
+    }
+
+    /// Get the span of the unexpected character.
+    ///
+    /// # Returns
+    /// The span of the unexpected character.
+    pub fn span(&self) -> &Span<usize> {
+        &self.span
+    }
+}
+
+impl Display for UnexpectedCharacterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Unexpected character at {}", self.span)
+    }
+}
+
+impl std::error::Error for UnexpectedCharacterError {}
+
+/// Error that can occur when getting the next token from the input string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NextTokenError {
+    /// An unterminated string literal error.
+    UnterminatedStringLiteral(UnterminatedStringLiteralError),
+
+    /// An unexpected character error.
+    UnexpectedCharacter(UnexpectedCharacterError),
+}
+
+impl Display for NextTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            NextTokenError::UnterminatedStringLiteral(error) => write!(f, "{}", error),
+            NextTokenError::UnexpectedCharacter(error) => write!(f, "{}", error),
+        }
+    }
+}
+
+impl std::error::Error for NextTokenError {}
+
+impl From<UnterminatedStringLiteralError> for NextTokenError {
+    fn from(error: UnterminatedStringLiteralError) -> Self {
+        NextTokenError::UnterminatedStringLiteral(error)
+    }
+}
+
+impl From<UnexpectedCharacterError> for NextTokenError {
+    fn from(error: UnexpectedCharacterError) -> Self {
+        NextTokenError::UnexpectedCharacter(error)
     }
 }
 
@@ -191,7 +310,7 @@ impl<'a> CharCursor<'a> {
     ///
     /// # Returns
     /// The next token from the input string.
-    fn next_token(&mut self) -> Result<Token, ()> {
+    fn next_token(&mut self) -> Result<Token, NextTokenError> {
         // Move the cursor to the next non-whitespace character,
         // as we are not interested in whitespace.
         self.skip_whitespace();
@@ -237,9 +356,10 @@ impl<'a> CharCursor<'a> {
                     let span: crate::ast::span::Span<usize> = Span::new(string_start, string_end);
                     return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::StringLiteral, span)));
                 }
-                return Err(());
+                let last_position = self.consumed_chars();
+                return Err(UnterminatedStringLiteralError::new(Span::new(current_position, last_position)).into());
             }
-            _ => return Err(()),
+            _ => return Err(UnexpectedCharacterError::new(Span::new(current_position, current_position + 1)).into()),
         }
     }
 
@@ -265,6 +385,28 @@ impl<'a> CharCursor<'a> {
         // The string was not terminated.
         false
     }
+}
+
+/// Tokenize the input string.
+///
+/// # Arguments
+/// - `input`: The input string to tokenize.
+///
+/// # Returns
+/// An iterator over the tokens in the input string.
+pub fn tokenize(input: &str) -> impl Iterator<Item = Result<Token, NextTokenError>> + use<'_> {
+    let mut cursor = CharCursor::new(input);
+
+    std::iter::from_fn(move || match cursor.next_token() {
+        Ok(token) => {
+            if token.is_end() {
+                None
+            } else {
+                Some(Ok(token))
+            }
+        }
+        Err(error) => Some(Err(error)),
+    })
 }
 
 #[cfg(test)]
@@ -322,6 +464,30 @@ mod tests {
 
         let token = Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End));
         assert_eq!(format!("{}", token), "End");
+    }
+
+    #[test]
+    fn test_unterminated_string_literal_error_new() {
+        let error = UnterminatedStringLiteralError::new((0..5).into());
+        assert_eq!(*error.span(), (0..5).into());
+    }
+
+    #[test]
+    fn test_unterminated_string_literal_error_display() {
+        let error = UnterminatedStringLiteralError::new((0..5).into());
+        assert_eq!(format!("{}", error), "Unterminated string literal at 0..5");
+    }
+
+    #[test]
+    fn test_unexpected_character_error_new() {
+        let error = UnexpectedCharacterError::new((0..5).into());
+        assert_eq!(*error.span(), (0..5).into());
+    }
+
+    #[test]
+    fn test_unexpected_character_error_display() {
+        let error = UnexpectedCharacterError::new((0..5).into());
+        assert_eq!(format!("{}", error), "Unexpected character at 0..5");
     }
 
     #[test]
@@ -470,6 +636,56 @@ mod tests {
 
         for token in expected.iter() {
             assert_eq!(cursor.next_token().unwrap(), *token);
+        }
+    }
+
+    #[test]
+    fn test_cursor_next_token_unexpected_character_error() {
+        let mut cursor = CharCursor::new("@");
+        let error = cursor.next_token().unwrap_err();
+        assert_eq!(error, NextTokenError::UnexpectedCharacter(UnexpectedCharacterError::new((0..1).into())));
+    }
+
+    #[test]
+    fn test_cursor_next_token_unexpected_character_error_mixed() {
+        let mut cursor = CharCursor::new("name1[*]/@/");
+        for _ in 0..5 {
+            cursor.next_token().unwrap();
+        }
+
+        let error = cursor.next_token().unwrap_err();
+        assert_eq!(error, NextTokenError::UnexpectedCharacter(UnexpectedCharacterError::new((9..10).into())));
+    }
+
+    #[test]
+    fn test_cursor_next_token_unterminated_string_literal_error() {
+        let mut cursor = CharCursor::new("\"Hello World!");
+        let error = cursor.next_token().unwrap_err();
+        assert_eq!(error, NextTokenError::UnterminatedStringLiteral(UnterminatedStringLiteralError::new((0..13).into())));
+    }
+
+    #[test]
+    fn test_tokenize() {
+        let input = "name1:name2[*, id=\"123!\"]/name3";
+        let expected = [
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (0..5).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::Colon, (5..6).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (6..11).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketOpen, (11..12).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::Asterisk, (12..13).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::Comma, (13..14).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (15..17).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::Equal, (17..18).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::StringLiteral, (19..23).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketClose, (24..25).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::ForwardSlash, (25..26).into())),
+            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (26..31).into())),
+            Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End)),
+        ];
+
+        let tokens: Vec<_> = tokenize(input).collect();
+        for (token, expected) in tokens.iter().zip(expected.iter()) {
+            assert_eq!(token.as_ref().unwrap(), expected);
         }
     }
 }
