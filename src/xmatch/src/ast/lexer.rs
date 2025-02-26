@@ -4,9 +4,9 @@
 
 use std::fmt::Display;
 
-/// The different ranged token kinds.
+/// The different single character token kinds.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum RangedTokenKind {
+pub enum SingleCharTokenKind {
     Asterisk,
     Equal,
     ForwardSlash,
@@ -15,80 +15,136 @@ pub enum RangedTokenKind {
     Colon,
     SquareBracketOpen,
     SquareBracketClose,
-    Identifier,
-    StringLiteral,
-    WhiteSpace,
 }
 
-impl Display for RangedTokenKind {
+impl Display for SingleCharTokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            RangedTokenKind::Asterisk => write!(f, "Asterisk"),
-            RangedTokenKind::Equal => write!(f, "Equal"),
-            RangedTokenKind::ForwardSlash => write!(f, "Forward Slash"),
-            RangedTokenKind::ExclamationMark => write!(f, "Exclamation Mark"),
-            RangedTokenKind::Comma => write!(f, "Comma"),
-            RangedTokenKind::Colon => write!(f, "Colon"),
-            RangedTokenKind::SquareBracketOpen => write!(f, "Square Bracket Open"),
-            RangedTokenKind::SquareBracketClose => write!(f, "Square Bracket Close"),
-            RangedTokenKind::Identifier => write!(f, "Identifier"),
-            RangedTokenKind::StringLiteral => write!(f, "String Literal"),
-            RangedTokenKind::WhiteSpace => write!(f, "Whitespace"),
+            SingleCharTokenKind::Asterisk => write!(f, "*"),
+            SingleCharTokenKind::Equal => write!(f, "="),
+            SingleCharTokenKind::ForwardSlash => write!(f, "/"),
+            SingleCharTokenKind::ExclamationMark => write!(f, "!"),
+            SingleCharTokenKind::Comma => write!(f, ","),
+            SingleCharTokenKind::Colon => write!(f, ":"),
+            SingleCharTokenKind::SquareBracketOpen => write!(f, "["),
+            SingleCharTokenKind::SquareBracketClose => write!(f, "]"),
         }
     }
 }
 
-/// The different unranged token kinds.
+/// The different spanned token kinds.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum UnrangedTokenKind {
+pub enum SpannedTokenKind {
+    StringLiteral,
+    Identifier,
+}
+
+impl Display for SpannedTokenKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            SpannedTokenKind::StringLiteral => write!(f, "String Literal"),
+            SpannedTokenKind::Identifier => write!(f, "Identifier"),
+        }
+    }
+}
+
+/// The different unspanned token kinds.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum UnspannedTokenKind {
     End,
 }
 
-impl Display for UnrangedTokenKind {
+impl Display for UnspannedTokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            UnrangedTokenKind::End => write!(f, "End"),
+            UnspannedTokenKind::End => write!(f, "End"),
         }
     }
 }
 
-/// A token with a range in the input string.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RangedToken {
+/// A single character token.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct SingleCharToken {
     /// The kind of the token.
-    kind: RangedTokenKind,
+    kind: SingleCharTokenKind,
 
-    /// The range of the token in the input string.
-    range: crate::ast::range::Range<usize>,
+    /// The position of the token in the input string.
+    position: usize,
 }
 
-impl RangedToken {
-    /// Create a new ranged token.
+impl SingleCharToken {
+    /// Create a new single character token.
     ///
     /// # Arguments
     /// - `kind`: The kind of the token.
-    /// - `range`: The range of the token in the input string.
+    /// - `position`: The position of the token in the input string.
     ///
     /// # Returns
-    /// A new ranged token.
-    pub fn new(kind: RangedTokenKind, range: crate::ast::range::Range<usize>) -> Self {
-        Self { kind, range }
+    /// A new single character token.
+    pub fn new(kind: SingleCharTokenKind, position: usize) -> Self {
+        Self { kind, position }
     }
 
     /// Get the kind of the token.
     ///
     /// # Returns
     /// The kind of the token.
-    pub fn kind(&self) -> RangedTokenKind {
+    pub fn kind(&self) -> SingleCharTokenKind {
         self.kind
     }
 
-    /// Get the range of the token in the input string.
+    /// Get the position of the token in the input string.
     ///
     /// # Returns
-    /// The range of the token in the input string.
-    pub fn range(&self) -> &crate::ast::range::Range<usize> {
-        &self.range
+    /// The position of the token in the input string.
+    pub fn position(&self) -> usize {
+        self.position
+    }
+}
+
+impl Display for SingleCharToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}[{}]", self.kind, self.position)
+    }
+}
+
+/// A token with a range in the input string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpannedToken {
+    /// The kind of the token.
+    kind: SpannedTokenKind,
+
+    /// The span of the token in the input string.
+    span: crate::ast::span::Span<usize>,
+}
+
+impl SpannedToken {
+    /// Create a new spanned token.
+    ///
+    /// # Arguments
+    /// - `kind`: The kind of the token.
+    /// - `range`: The span of the token in the input string.
+    ///
+    /// # Returns
+    /// A new spannend token.
+    pub fn new(kind: SpannedTokenKind, range: crate::ast::span::Span<usize>) -> Self {
+        Self { kind, span: range }
+    }
+
+    /// Get the kind of the token.
+    ///
+    /// # Returns
+    /// The kind of the token.
+    pub fn kind(&self) -> SpannedTokenKind {
+        self.kind
+    }
+
+    /// Get the span of the token in the input string.
+    ///
+    /// # Returns
+    /// The span of the token in the input string.
+    pub fn range(&self) -> &crate::ast::span::Span<usize> {
+        &self.span
     }
 
     /// Get the length of the token.
@@ -96,32 +152,32 @@ impl RangedToken {
     /// # Returns
     /// The length of the token.
     pub fn len(&self) -> usize {
-        self.range.len()
+        self.span.len()
     }
 }
 
-impl Display for RangedToken {
+impl Display for SpannedToken {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}[{}]", self.kind, self.range)
+        write!(f, "{}[{}]", self.kind, self.span)
     }
 }
 
-/// A token without a range in the input string.
+/// A token without a span or position in the input string.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UnrangedToken {
-    /// The unranged token kind.
-    pub kind: UnrangedTokenKind,
+pub struct UnspannedToken {
+    /// The unspanned token kind.
+    pub kind: UnspannedTokenKind,
 }
 
-impl UnrangedToken {
-    /// Create a new unranged token.
+impl UnspannedToken {
+    /// Create a new unspanned token.
     ///
     /// # Arguments
     /// - `kind`: The kind of the token.
     ///
     /// # Returns
-    /// A new unranged token.
-    pub fn new(kind: UnrangedTokenKind) -> Self {
+    /// A new unspanned token.
+    pub fn new(kind: UnspannedTokenKind) -> Self {
         Self { kind }
     }
 
@@ -129,12 +185,12 @@ impl UnrangedToken {
     ///
     /// # Returns
     /// The kind of the token.
-    pub fn kind(&self) -> UnrangedTokenKind {
+    pub fn kind(&self) -> UnspannedTokenKind {
         self.kind
     }
 }
 
-impl Display for UnrangedToken {
+impl Display for UnspannedToken {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.kind)
     }
@@ -143,18 +199,22 @@ impl Display for UnrangedToken {
 /// A token produced by the lexer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
-    /// A token with a range in the input string.
-    Ranged(RangedToken),
+    /// A single character token.
+    Single(SingleCharToken),
 
-    /// A token without a range in the input string.
-    Unranged(UnrangedToken),
+    /// A token with a span in the input string.
+    Spanned(SpannedToken),
+
+    /// A token without a span or position in the input string.
+    Unspanned(UnspannedToken),
 }
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Ranged(token) => write!(f, "{}", token),
-            Token::Unranged(token) => write!(f, "{}", token),
+            Token::Single(token) => write!(f, "{}", token),
+            Token::Spanned(token) => write!(f, "{}", token),
+            Token::Unspanned(token) => write!(f, "{}", token),
         }
     }
 }
@@ -164,63 +224,75 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ranged_token_kind_display() {
-        assert_eq!(format!("{}", RangedTokenKind::Asterisk), "Asterisk");
-        assert_eq!(format!("{}", RangedTokenKind::Equal), "Equal");
-        assert_eq!(format!("{}", RangedTokenKind::ForwardSlash), "Forward Slash");
-        assert_eq!(format!("{}", RangedTokenKind::ExclamationMark), "Exclamation Mark");
-        assert_eq!(format!("{}", RangedTokenKind::Comma), "Comma");
-        assert_eq!(format!("{}", RangedTokenKind::Colon), "Colon");
-        assert_eq!(format!("{}", RangedTokenKind::SquareBracketOpen), "Square Bracket Open");
-        assert_eq!(format!("{}", RangedTokenKind::SquareBracketClose), "Square Bracket Close");
-        assert_eq!(format!("{}", RangedTokenKind::Identifier), "Identifier");
-        assert_eq!(format!("{}", RangedTokenKind::StringLiteral), "String Literal");
-        assert_eq!(format!("{}", RangedTokenKind::WhiteSpace), "Whitespace");
+    fn test_single_char_token_kind_display() {
+        assert_eq!(format!("{}", SingleCharTokenKind::Asterisk), "*");
+        assert_eq!(format!("{}", SingleCharTokenKind::Equal), "=");
+        assert_eq!(format!("{}", SingleCharTokenKind::ForwardSlash), "/");
+        assert_eq!(format!("{}", SingleCharTokenKind::ExclamationMark), "!");
+        assert_eq!(format!("{}", SingleCharTokenKind::Comma), ",");
+        assert_eq!(format!("{}", SingleCharTokenKind::Colon), ":");
+        assert_eq!(format!("{}", SingleCharTokenKind::SquareBracketOpen), "[");
+        assert_eq!(format!("{}", SingleCharTokenKind::SquareBracketClose), "]");
     }
 
     #[test]
-    fn test_unranged_token_kind_display() {
-        assert_eq!(format!("{}", UnrangedTokenKind::End), "End");
+    fn test_spanned_token_kind_display() {
+        assert_eq!(format!("{}", SpannedTokenKind::StringLiteral), "String Literal");
+        assert_eq!(format!("{}", SpannedTokenKind::Identifier), "Identifier");
     }
 
     #[test]
-    fn test_ranged_token_new() {
-        let token = RangedToken::new(RangedTokenKind::Asterisk, crate::ast::range::Range::new(0, 1));
-        assert_eq!(token.kind(), RangedTokenKind::Asterisk);
-        assert_eq!(token.range().start, 0);
-        assert_eq!(token.range().end, 1);
+    fn test_unspanned_token_kind_display() {
+        assert_eq!(format!("{}", UnspannedTokenKind::End), "End");
     }
 
     #[test]
-    fn test_ranged_token_display() {
-        let token = RangedToken::new(RangedTokenKind::Asterisk, crate::ast::range::Range::new(0, 1));
-        assert_eq!(format!("{}", token), "Asterisk[0..1]");
+    fn test_single_char_token_new() {
+        let token = SingleCharToken::new(SingleCharTokenKind::Asterisk, 0);
+        assert_eq!(token.kind(), SingleCharTokenKind::Asterisk);
+        assert_eq!(token.position(), 0);
     }
 
     #[test]
-    fn test_ranged_token_len() {
-        let token = RangedToken::new(RangedTokenKind::Asterisk, crate::ast::range::Range::new(0, 11));
-        assert_eq!(token.len(), 11);
+    fn test_single_char_token_display() {
+        let token = SingleCharToken::new(SingleCharTokenKind::Asterisk, 0);
+        assert_eq!(format!("{}", token), "*[0]");
     }
 
     #[test]
-    fn test_unranged_token_new() {
-        let token = UnrangedToken::new(UnrangedTokenKind::End);
-        assert_eq!(token.kind(), UnrangedTokenKind::End);
+    fn test_spanned_token_new() {
+        let token = SpannedToken::new(SpannedTokenKind::StringLiteral, (0..5).into());
+        assert_eq!(token.kind(), SpannedTokenKind::StringLiteral);
+        assert_eq!(*token.range(), (0..5).into());
     }
 
     #[test]
-    fn test_unranged_token_display() {
-        let token = UnrangedToken::new(UnrangedTokenKind::End);
+    fn test_spanned_token_display() {
+        let token = SpannedToken::new(SpannedTokenKind::StringLiteral, (0..5).into());
+        assert_eq!(format!("{}", token), "String Literal[0..5]");
+    }
+
+    #[test]
+    fn test_unspanned_token_new() {
+        let token = UnspannedToken::new(UnspannedTokenKind::End);
+        assert_eq!(token.kind(), UnspannedTokenKind::End);
+    }
+
+    #[test]
+    fn test_unspanned_token_display() {
+        let token = UnspannedToken::new(UnspannedTokenKind::End);
         assert_eq!(format!("{}", token), "End");
     }
 
     #[test]
     fn test_token_display() {
-        let ranged_token = Token::Ranged(RangedToken::new(RangedTokenKind::Asterisk, crate::ast::range::Range::new(0, 1)));
-        assert_eq!(format!("{}", ranged_token), "Asterisk[0..1]");
+        let token = Token::Single(SingleCharToken::new(SingleCharTokenKind::Asterisk, 0));
+        assert_eq!(format!("{}", token), "*[0]");
 
-        let unranged_token = Token::Unranged(UnrangedToken::new(UnrangedTokenKind::End));
-        assert_eq!(format!("{}", unranged_token), "End");
+        let token = Token::Spanned(SpannedToken::new(SpannedTokenKind::StringLiteral, (0..5).into()));
+        assert_eq!(format!("{}", token), "String Literal[0..5]");
+
+        let token = Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End));
+        assert_eq!(format!("{}", token), "End");
     }
 }
