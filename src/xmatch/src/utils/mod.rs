@@ -2,5 +2,4 @@
 
 #![allow(dead_code)]
 
-pub mod str;
 pub mod unescape;

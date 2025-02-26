@@ -93,6 +93,11 @@ impl<'a> CharCursor<'a> {
             None => "".chars(),
         }
     }
+
+    /// Advances the cursor while the next character is whitespace.
+    pub fn skip_whitespace(&mut self) {
+        self.consume_while(|c| c.is_whitespace());
+    }
 }
 
 impl Iterator for CharCursor<'_> {

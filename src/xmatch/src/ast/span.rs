@@ -4,13 +4,15 @@
 
 use std::{fmt::Display, ops::Sub};
 
-/// A span.
+/// A span with a start and an end.
+/// The end is exclusive.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Span<T> {
     /// The start of the span.
     pub start: T,
 
     /// The end of the span.
+    /// The end is exclusive.
     pub end: T,
 }
 
@@ -33,6 +35,7 @@ impl<T> Span<T> {
     }
 
     /// Get the end of the span.
+    /// The end is exclusive.
     ///
     /// # Returns
     /// The end of the span.
