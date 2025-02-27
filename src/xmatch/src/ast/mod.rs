@@ -1,5 +1,5 @@
 // Copyright 2025 Felix Kahle. All rights reserved.
 
-mod cursor;
-mod lexer;
-mod span;
+pub mod cursor;
+pub mod lexer;
+pub mod span;

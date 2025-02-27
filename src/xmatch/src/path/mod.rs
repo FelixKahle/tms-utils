@@ -2,7 +2,6 @@
 
 #![allow(dead_code)]
 
-mod ast;
-mod parsing;
-mod path;
-mod utils;
+pub mod attribute;
+pub mod element;
+pub mod path;

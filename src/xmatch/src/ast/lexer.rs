@@ -87,7 +87,7 @@ impl SpannedToken {
     ///
     /// # Returns
     /// The span of the token in the input string.
-    pub fn range(&self) -> &crate::ast::span::Span<usize> {
+    pub fn span(&self) -> &crate::ast::span::Span<usize> {
         &self.span
     }
 
@@ -436,7 +436,7 @@ mod tests {
     fn test_spanned_token_new() {
         let token = SpannedToken::new(SpannedTokenKind::StringLiteral, (0..5).into());
         assert_eq!(token.kind(), SpannedTokenKind::StringLiteral);
-        assert_eq!(*token.range(), (0..5).into());
+        assert_eq!(*token.span(), (0..5).into());
     }
 
     #[test]
