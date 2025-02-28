@@ -3,6 +3,5 @@
 #![allow(dead_code)]
 
 mod ast;
-mod parsing;
 mod path;
 mod utils;

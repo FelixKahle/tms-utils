@@ -6,14 +6,14 @@ use std::{fmt::Display, ops::Sub};
 
 /// A span with a start and an end.
 /// The end is exclusive.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Span<T> {
     /// The start of the span.
-    pub start: T,
+    start: T,
 
     /// The end of the span.
     /// The end is exclusive.
-    pub end: T,
+    end: T,
 }
 
 impl<T> Span<T> {
@@ -41,6 +41,16 @@ impl<T> Span<T> {
     /// The end of the span.
     pub fn end(&self) -> &T {
         &self.end
+    }
+}
+
+impl<T: Copy> Span<T> {
+    /// Convert the span to a range.
+    ///
+    /// # Returns
+    /// The span as a range.
+    pub fn as_range(&self) -> std::ops::Range<T> {
+        self.start..self.end
     }
 }
 

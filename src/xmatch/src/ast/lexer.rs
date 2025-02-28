@@ -2,13 +2,12 @@
 
 #![allow(dead_code)]
 
-use std::fmt::Display;
-
 use super::{cursor::CharCursor, span::Span};
+use std::fmt::Display;
 
 /// The different spanned token kinds.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum SpannedTokenKind {
+pub enum TokenKind {
     StringLiteral,
     Identifier,
     Asterisk,
@@ -19,67 +18,55 @@ pub enum SpannedTokenKind {
     Colon,
     SquareBracketOpen,
     SquareBracketClose,
-}
-
-impl Display for SpannedTokenKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            SpannedTokenKind::StringLiteral => write!(f, "String Literal"),
-            SpannedTokenKind::Identifier => write!(f, "Identifier"),
-            SpannedTokenKind::Asterisk => write!(f, "Asterisk"),
-            SpannedTokenKind::Equal => write!(f, "Equal"),
-            SpannedTokenKind::ForwardSlash => write!(f, "Forward Slash"),
-            SpannedTokenKind::ExclamationMark => write!(f, "Exclamation Mark"),
-            SpannedTokenKind::Comma => write!(f, "Comma"),
-            SpannedTokenKind::Colon => write!(f, "Colon"),
-            SpannedTokenKind::SquareBracketOpen => write!(f, "Square Bracket Open"),
-            SpannedTokenKind::SquareBracketClose => write!(f, "Square Bracket Close"),
-        }
-    }
-}
-
-/// The different unspanned token kinds.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum UnspannedTokenKind {
     End,
 }
 
-impl Display for UnspannedTokenKind {
+impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            UnspannedTokenKind::End => write!(f, "End"),
+            TokenKind::StringLiteral => write!(f, "String Literal"),
+            TokenKind::Identifier => write!(f, "Identifier"),
+            TokenKind::Asterisk => write!(f, "Asterisk"),
+            TokenKind::Equal => write!(f, "Equal"),
+            TokenKind::ForwardSlash => write!(f, "Forward Slash"),
+            TokenKind::ExclamationMark => write!(f, "Exclamation Mark"),
+            TokenKind::Comma => write!(f, "Comma"),
+            TokenKind::Colon => write!(f, "Colon"),
+            TokenKind::SquareBracketOpen => write!(f, "Square Bracket Open"),
+            TokenKind::SquareBracketClose => write!(f, "Square Bracket Close"),
+            TokenKind::End => write!(f, "End"),
         }
     }
 }
 
-/// A token with a range in the input string.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SpannedToken {
+/// A token.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Token {
     /// The kind of the token.
-    kind: SpannedTokenKind,
+    kind: TokenKind,
 
     /// The span of the token in the input string.
-    span: Span<usize>,
+    span: Option<Span<usize>>,
 }
 
-impl SpannedToken {
-    /// Create a new spanned token.
+impl Token {
+    /// Create a new token.
     ///
     /// # Arguments
     /// - `kind`: The kind of the token.
-    /// - `range`: The span of the token in the input string.
+    /// - `span`: The span of the token in the input string.
     ///
     /// # Returns
-    /// A new spannend token.
-    pub fn new(kind: SpannedTokenKind, range: Span<usize>) -> Self {
-        Self { kind, span: range }
+    /// A new token.
+    pub fn new(kind: TokenKind, span: Option<Span<usize>>) -> Self {
+        Self { kind, span }
     }
 
     /// Get the kind of the token.
     ///
     /// # Returns
     /// The kind of the token.
-    pub fn kind(&self) -> SpannedTokenKind {
+    pub fn kind(&self) -> TokenKind {
         self.kind
     }
 
@@ -87,94 +74,30 @@ impl SpannedToken {
     ///
     /// # Returns
     /// The span of the token in the input string.
-    pub fn span(&self) -> &crate::ast::span::Span<usize> {
-        &self.span
+    pub fn span(&self) -> Option<&Span<usize>> {
+        self.span.as_ref()
     }
 
-    /// Get the length of the token.
-    ///
-    /// # Returns
-    /// The length of the token.
-    pub fn len(&self) -> usize {
-        self.span.len()
-    }
-}
-
-impl Display for SpannedToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}[{}]", self.kind, self.span)
-    }
-}
-
-/// A token without a span or position in the input string.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UnspannedToken {
-    /// The unspanned token kind.
-    pub kind: UnspannedTokenKind,
-}
-
-impl UnspannedToken {
-    /// Create a new unspanned token.
-    ///
-    /// # Arguments
-    /// - `kind`: The kind of the token.
-    ///
-    /// # Returns
-    /// A new unspanned token.
-    pub fn new(kind: UnspannedTokenKind) -> Self {
-        Self { kind }
-    }
-
-    /// Get the kind of the token.
-    ///
-    /// # Returns
-    /// The kind of the token.
-    pub fn kind(&self) -> UnspannedTokenKind {
-        self.kind
-    }
-}
-
-impl Display for UnspannedToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.kind)
-    }
-}
-
-/// A token produced by the lexer.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Token {
-    /// A token with a span in the input string.
-    Spanned(SpannedToken),
-
-    /// A token without a span in the input string.
-    Unspanned(UnspannedToken),
-}
-
-impl Token {
-    /// Return `true` if the token is an end token.
+    /// Check if the token is an end token.
     ///
     /// # Returns
     /// `true` if the token is an end token, `false` otherwise.
-    #[inline]
     pub fn is_end(&self) -> bool {
-        match self {
-            Token::Unspanned(token) => matches!(token.kind(), UnspannedTokenKind::End),
-            _ => false,
-        }
+        self.kind == TokenKind::End
     }
 }
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Token::Spanned(token) => write!(f, "{}", token),
-            Token::Unspanned(token) => write!(f, "{}", token),
+        match &self.span {
+            Some(span) => write!(f, "{}[{}]", self.kind, span),
+            None => write!(f, "{}", self.kind),
         }
     }
 }
 
 /// An error indicating that a string literal was not terminated.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct UnterminatedStringLiteralError {
     /// The span of the unterminated string literal.
     span: Span<usize>,
@@ -203,14 +126,14 @@ impl UnterminatedStringLiteralError {
 
 impl Display for UnterminatedStringLiteralError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Unterminated string literal at {}", self.span)
+        write!(f, "Unterminated string literal at {}", self.span())
     }
 }
 
 impl std::error::Error for UnterminatedStringLiteralError {}
 
 /// An error indicating that an unexpected character was encountered.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct UnexpectedCharacterError {
     /// The span of the unexpected character.
     span: Span<usize>,
@@ -239,14 +162,14 @@ impl UnexpectedCharacterError {
 
 impl Display for UnexpectedCharacterError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Unexpected character at {}", self.span)
+        write!(f, "Unexpected character at {}", self.span())
     }
 }
 
 impl std::error::Error for UnexpectedCharacterError {}
 
 /// Error that can occur when getting the next token from the input string.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum NextTokenError {
     /// An unterminated string literal error.
     UnterminatedStringLiteral(UnterminatedStringLiteralError),
@@ -321,40 +244,30 @@ impl<'a> CharCursor<'a> {
         let current_position = self.consumed_chars();
         let current_char = match self.next() {
             Some(c) => c,
-            None => return Ok(Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End))),
+            None => return Ok(Token::new(TokenKind::End, None)),
         };
 
         match current_char {
-            '*' => return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::Asterisk, Span::new(current_position, current_position + 1)))),
-            '=' => return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::Equal, Span::new(current_position, current_position + 1)))),
-            '/' => return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::ForwardSlash, Span::new(current_position, current_position + 1)))),
-            '!' => return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::ExclamationMark, Span::new(current_position, current_position + 1)))),
-            ',' => return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::Comma, Span::new(current_position, current_position + 1)))),
-            ':' => return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::Colon, Span::new(current_position, current_position + 1)))),
-            '[' => {
-                return Ok(Token::Spanned(SpannedToken::new(
-                    SpannedTokenKind::SquareBracketOpen,
-                    Span::new(current_position, current_position + 1),
-                )))
-            }
-            ']' => {
-                return Ok(Token::Spanned(SpannedToken::new(
-                    SpannedTokenKind::SquareBracketClose,
-                    Span::new(current_position, current_position + 1),
-                )))
-            }
+            '*' => return Ok(Token::new(TokenKind::Asterisk, Some(Span::new(current_position, current_position + 1)))),
+            '=' => return Ok(Token::new(TokenKind::Equal, Some(Span::new(current_position, current_position + 1)))),
+            '/' => return Ok(Token::new(TokenKind::ForwardSlash, Some(Span::new(current_position, current_position + 1)))),
+            '!' => return Ok(Token::new(TokenKind::ExclamationMark, Some(Span::new(current_position, current_position + 1)))),
+            ',' => return Ok(Token::new(TokenKind::Comma, Some(Span::new(current_position, current_position + 1)))),
+            ':' => return Ok(Token::new(TokenKind::Colon, Some(Span::new(current_position, current_position + 1)))),
+            '[' => return Ok(Token::new(TokenKind::SquareBracketOpen, Some(Span::new(current_position, current_position + 1)))),
+            ']' => return Ok(Token::new(TokenKind::SquareBracketClose, Some(Span::new(current_position, current_position + 1)))),
             c if is_id_start(c) => {
                 self.consume_while(is_id_continue);
                 let identifier_end = self.consumed_chars();
-                let span: crate::ast::span::Span<usize> = (current_position..identifier_end).into();
-                return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, span)));
+                let span = Span::new(current_position, identifier_end);
+                return Ok(Token::new(TokenKind::Identifier, Some(span)));
             }
             '"' => {
                 if self.consume_double_quoted_string() {
                     let string_start = current_position + 1;
                     let string_end = self.consumed_chars() - 1;
-                    let span: crate::ast::span::Span<usize> = Span::new(string_start, string_end);
-                    return Ok(Token::Spanned(SpannedToken::new(SpannedTokenKind::StringLiteral, span)));
+                    let span = Span::new(string_start, string_end);
+                    return Ok(Token::new(TokenKind::StringLiteral, Some(span)));
                 }
                 let last_position = self.consumed_chars();
                 return Err(UnterminatedStringLiteralError::new(Span::new(current_position, last_position)).into());
@@ -414,79 +327,57 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_spanned_token_kind_display() {
-        assert_eq!(format!("{}", SpannedTokenKind::StringLiteral), "String Literal");
-        assert_eq!(format!("{}", SpannedTokenKind::Identifier), "Identifier");
-        assert_eq!(format!("{}", SpannedTokenKind::Asterisk), "Asterisk");
-        assert_eq!(format!("{}", SpannedTokenKind::Equal), "Equal");
-        assert_eq!(format!("{}", SpannedTokenKind::ForwardSlash), "Forward Slash");
-        assert_eq!(format!("{}", SpannedTokenKind::ExclamationMark), "Exclamation Mark");
-        assert_eq!(format!("{}", SpannedTokenKind::Comma), "Comma");
-        assert_eq!(format!("{}", SpannedTokenKind::Colon), "Colon");
-        assert_eq!(format!("{}", SpannedTokenKind::SquareBracketOpen), "Square Bracket Open");
-        assert_eq!(format!("{}", SpannedTokenKind::SquareBracketClose), "Square Bracket Close");
+    fn test_token_kind_display() {
+        assert_eq!(format!("{}", TokenKind::StringLiteral), "String Literal");
+        assert_eq!(format!("{}", TokenKind::Identifier), "Identifier");
+        assert_eq!(format!("{}", TokenKind::Asterisk), "Asterisk");
+        assert_eq!(format!("{}", TokenKind::Equal), "Equal");
+        assert_eq!(format!("{}", TokenKind::ForwardSlash), "Forward Slash");
+        assert_eq!(format!("{}", TokenKind::ExclamationMark), "Exclamation Mark");
+        assert_eq!(format!("{}", TokenKind::Comma), "Comma");
+        assert_eq!(format!("{}", TokenKind::Colon), "Colon");
+        assert_eq!(format!("{}", TokenKind::SquareBracketOpen), "Square Bracket Open");
+        assert_eq!(format!("{}", TokenKind::SquareBracketClose), "Square Bracket Close");
+        assert_eq!(format!("{}", TokenKind::End), "End");
     }
 
     #[test]
-    fn test_unspanned_token_kind_display() {
-        assert_eq!(format!("{}", UnspannedTokenKind::End), "End");
-    }
-
-    #[test]
-    fn test_spanned_token_new() {
-        let token = SpannedToken::new(SpannedTokenKind::StringLiteral, (0..5).into());
-        assert_eq!(token.kind(), SpannedTokenKind::StringLiteral);
-        assert_eq!(*token.span(), (0..5).into());
-    }
-
-    #[test]
-    fn test_spanned_token_display() {
-        let token = SpannedToken::new(SpannedTokenKind::StringLiteral, (0..5).into());
-        assert_eq!(format!("{}", token), "String Literal[0..5]");
-    }
-
-    #[test]
-    fn test_unspanned_token_new() {
-        let token = UnspannedToken::new(UnspannedTokenKind::End);
-        assert_eq!(token.kind(), UnspannedTokenKind::End);
-    }
-
-    #[test]
-    fn test_unspanned_token_display() {
-        let token = UnspannedToken::new(UnspannedTokenKind::End);
-        assert_eq!(format!("{}", token), "End");
+    fn test_token_new() {
+        let token = Token::new(TokenKind::StringLiteral, Some(Span::new(0, 5)));
+        assert_eq!(token.kind(), TokenKind::StringLiteral);
+        assert_eq!(token.span(), Some(&Span::new(0, 5)));
     }
 
     #[test]
     fn test_token_display() {
-        let token = Token::Spanned(SpannedToken::new(SpannedTokenKind::StringLiteral, (0..5).into()));
+        let token = Token::new(TokenKind::StringLiteral, Some(Span::new(0, 5)));
         assert_eq!(format!("{}", token), "String Literal[0..5]");
 
-        let token = Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End));
+        let token = Token::new(TokenKind::End, None);
         assert_eq!(format!("{}", token), "End");
     }
 
     #[test]
     fn test_unterminated_string_literal_error_new() {
-        let error = UnterminatedStringLiteralError::new((0..5).into());
+        let error = UnterminatedStringLiteralError::new(Span::new(0, 5));
         assert_eq!(*error.span(), (0..5).into());
     }
 
     #[test]
     fn test_unterminated_string_literal_error_display() {
-        let error = UnterminatedStringLiteralError::new((0..5).into());
+        let error = UnterminatedStringLiteralError::new(Span::new(0, 5));
         assert_eq!(format!("{}", error), "Unterminated string literal at 0..5");
     }
 
     #[test]
     fn test_unexpected_character_error_new() {
-        let error = UnexpectedCharacterError::new((0..5).into());
-        assert_eq!(*error.span(), (0..5).into());
+        let error = UnexpectedCharacterError::new(Span::new(0, 5));
+        assert_eq!(*error.span(), Span::new(0, 5));
     }
 
     #[test]
     fn test_unexpected_character_error_display() {
-        let error = UnexpectedCharacterError::new((0..5).into());
+        let error = UnexpectedCharacterError::new(Span::new(0, 5));
         assert_eq!(format!("{}", error), "Unexpected character at 0..5");
     }
 
@@ -494,57 +385,57 @@ mod tests {
     fn test_cursor_next_token_single_char() {
         let mut cursor = CharCursor::new("*");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::Asterisk, Span::new(0, 1))));
+        assert_eq!(token, Token::new(TokenKind::Asterisk, Some(Span::new(0, 1))));
 
         let mut cursor = CharCursor::new("=");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::Equal, Span::new(0, 1))));
+        assert_eq!(token, Token::new(TokenKind::Equal, Some(Span::new(0, 1))));
 
         let mut cursor = CharCursor::new("/");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::ForwardSlash, Span::new(0, 1))));
+        assert_eq!(token, Token::new(TokenKind::ForwardSlash, Some(Span::new(0, 1))));
 
         let mut cursor = CharCursor::new("!");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::ExclamationMark, Span::new(0, 1))));
+        assert_eq!(token, Token::new(TokenKind::ExclamationMark, Some(Span::new(0, 1))));
 
         let mut cursor = CharCursor::new(",");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::Comma, Span::new(0, 1))));
+        assert_eq!(token, Token::new(TokenKind::Comma, Some(Span::new(0, 1))));
 
         let mut cursor = CharCursor::new(":");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::Colon, Span::new(0, 1))));
+        assert_eq!(token, Token::new(TokenKind::Colon, Some(Span::new(0, 1))));
 
         let mut cursor = CharCursor::new("[");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketOpen, Span::new(0, 1))));
+        assert_eq!(token, Token::new(TokenKind::SquareBracketOpen, Some(Span::new(0, 1))));
 
         let mut cursor = CharCursor::new("]");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketClose, Span::new(0, 1))));
+        assert_eq!(token, Token::new(TokenKind::SquareBracketClose, Some(Span::new(0, 1))));
     }
 
     #[test]
-    fn test_cursor_next_token_unspanned() {
+    fn test_cursor_next_token_end() {
         let mut cursor = CharCursor::new("");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End)));
+        assert_eq!(token, Token::new(TokenKind::End, None));
     }
 
     #[test]
     fn test_cursor_next_token_single_char_iteration() {
         let mut cursor = CharCursor::new("*=,![]/:");
         let expected = [
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Asterisk, Span::new(0, 1))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Equal, Span::new(1, 2))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Comma, Span::new(2, 3))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::ExclamationMark, Span::new(3, 4))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketOpen, Span::new(4, 5))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketClose, Span::new(5, 6))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::ForwardSlash, Span::new(6, 7))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Colon, Span::new(7, 8))),
-            Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End)),
+            Token::new(TokenKind::Asterisk, Some(Span::new(0, 1))),
+            Token::new(TokenKind::Equal, Some(Span::new(1, 2))),
+            Token::new(TokenKind::Comma, Some(Span::new(2, 3))),
+            Token::new(TokenKind::ExclamationMark, Some(Span::new(3, 4))),
+            Token::new(TokenKind::SquareBracketOpen, Some(Span::new(4, 5))),
+            Token::new(TokenKind::SquareBracketClose, Some(Span::new(5, 6))),
+            Token::new(TokenKind::ForwardSlash, Some(Span::new(6, 7))),
+            Token::new(TokenKind::Colon, Some(Span::new(7, 8))),
+            Token::new(TokenKind::End, None),
         ];
 
         for token in expected.iter() {
@@ -556,11 +447,11 @@ mod tests {
     fn test_cursor_next_token_single_char_with_whitespace_iteration() {
         let mut cursor = CharCursor::new("  *   =,  !");
         let expected = [
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Asterisk, Span::new(2, 3))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Equal, Span::new(6, 7))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Comma, Span::new(7, 8))),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::ExclamationMark, Span::new(10, 11))),
-            Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End)),
+            Token::new(TokenKind::Asterisk, Some(Span::new(2, 3))),
+            Token::new(TokenKind::Equal, Some(Span::new(6, 7))),
+            Token::new(TokenKind::Comma, Some(Span::new(7, 8))),
+            Token::new(TokenKind::ExclamationMark, Some(Span::new(10, 11))),
+            Token::new(TokenKind::End, None),
         ];
 
         for token in expected.iter() {
@@ -569,27 +460,27 @@ mod tests {
     }
 
     #[test]
-    fn test_cursor_next_token_spanned_identifier() {
+    fn test_cursor_next_token_identifier() {
         let mut cursor = CharCursor::new("foo");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (0..3).into())));
+        assert_eq!(token, Token::new(TokenKind::Identifier, Some(Span::new(0, 3))));
     }
 
     #[test]
-    fn test_cursor_next_token_spanned_identifier_with_whitespace() {
+    fn test_cursor_next_token_identifier_with_whitespace() {
         let mut cursor = CharCursor::new("  foo  ");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (2..5).into())));
+        assert_eq!(token, Token::new(TokenKind::Identifier, Some(Span::new(2, 5))));
     }
 
     #[test]
-    fn test_cursor_next_token_spanned_identifier_iteration() {
+    fn test_cursor_next_token_identifier_iteration() {
         let mut cursor = CharCursor::new("foo bar baz");
         let expected = [
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (0..3).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (4..7).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (8..11).into())),
-            Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End)),
+            Token::new(TokenKind::Identifier, Some(Span::new(0, 3))),
+            Token::new(TokenKind::Identifier, Some(Span::new(4, 7))),
+            Token::new(TokenKind::Identifier, Some(Span::new(8, 11))),
+            Token::new(TokenKind::End, None),
         ];
 
         for token in expected.iter() {
@@ -610,28 +501,29 @@ mod tests {
     }
 
     #[test]
-    fn test_cursor_next_token_spanned_string_literal() {
+    fn test_cursor_next_token_string_literal() {
         let mut cursor = CharCursor::new("\"Hello World!\"");
         let token = cursor.next_token().unwrap();
-        assert_eq!(token, Token::Spanned(SpannedToken::new(SpannedTokenKind::StringLiteral, (1..13).into())));
+        assert_eq!(token, Token::new(TokenKind::StringLiteral, Some(Span::new(1, 13))));
     }
 
     #[test]
     fn test_cursor_next_token_full_example_iteration() {
         let mut cursor = CharCursor::new("name1:name2[*, id=\"123!\"]/name3");
         let expected = [
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (0..5).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Colon, (5..6).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (6..11).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketOpen, (11..12).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Asterisk, (12..13).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Comma, (13..14).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (15..17).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Equal, (17..18).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::StringLiteral, (19..23).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketClose, (24..25).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::ForwardSlash, (25..26).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (26..31).into())),
+            Token::new(TokenKind::Identifier, Some(Span::new(0, 5))),
+            Token::new(TokenKind::Colon, Some(Span::new(5, 6))),
+            Token::new(TokenKind::Identifier, Some(Span::new(6, 11))),
+            Token::new(TokenKind::SquareBracketOpen, Some(Span::new(11, 12))),
+            Token::new(TokenKind::Asterisk, Some(Span::new(12, 13))),
+            Token::new(TokenKind::Comma, Some(Span::new(13, 14))),
+            Token::new(TokenKind::Identifier, Some(Span::new(15, 17))),
+            Token::new(TokenKind::Equal, Some(Span::new(17, 18))),
+            Token::new(TokenKind::StringLiteral, Some(Span::new(19, 23))),
+            Token::new(TokenKind::SquareBracketClose, Some(Span::new(24, 25))),
+            Token::new(TokenKind::ForwardSlash, Some(Span::new(25, 26))),
+            Token::new(TokenKind::Identifier, Some(Span::new(26, 31))),
+            Token::new(TokenKind::End, None),
         ];
 
         for token in expected.iter() {
@@ -668,19 +560,19 @@ mod tests {
     fn test_tokenize() {
         let input = "name1:name2[*, id=\"123!\"]/name3";
         let expected = [
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (0..5).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Colon, (5..6).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (6..11).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketOpen, (11..12).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Asterisk, (12..13).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Comma, (13..14).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (15..17).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Equal, (17..18).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::StringLiteral, (19..23).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::SquareBracketClose, (24..25).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::ForwardSlash, (25..26).into())),
-            Token::Spanned(SpannedToken::new(SpannedTokenKind::Identifier, (26..31).into())),
-            Token::Unspanned(UnspannedToken::new(UnspannedTokenKind::End)),
+            Token::new(TokenKind::Identifier, Some(Span::new(0, 5))),
+            Token::new(TokenKind::Colon, Some(Span::new(5, 6))),
+            Token::new(TokenKind::Identifier, Some(Span::new(6, 11))),
+            Token::new(TokenKind::SquareBracketOpen, Some(Span::new(11, 12))),
+            Token::new(TokenKind::Asterisk, Some(Span::new(12, 13))),
+            Token::new(TokenKind::Comma, Some(Span::new(13, 14))),
+            Token::new(TokenKind::Identifier, Some(Span::new(15, 17))),
+            Token::new(TokenKind::Equal, Some(Span::new(17, 18))),
+            Token::new(TokenKind::StringLiteral, Some(Span::new(19, 23))),
+            Token::new(TokenKind::SquareBracketClose, Some(Span::new(24, 25))),
+            Token::new(TokenKind::ForwardSlash, Some(Span::new(25, 26))),
+            Token::new(TokenKind::Identifier, Some(Span::new(26, 31))),
+            Token::new(TokenKind::End, None),
         ];
 
         let tokens: Vec<_> = tokenize(input).collect();
