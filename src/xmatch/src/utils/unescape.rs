@@ -96,6 +96,36 @@ pub enum EscapeError {
     MultipleSkippedLinesWarning,
 }
 
+impl std::fmt::Display for EscapeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EscapeError::ZeroChars => write!(f, "Expected 1 character, but 0 were found."),
+            EscapeError::MoreThanOneChar => write!(f, "Expected 1 character, but more than 1 were found."),
+            EscapeError::LoneSlash => write!(f, "Found an escaped '\\' without a following character."),
+            EscapeError::InvalidEscape => write!(f, "Invalid escape character encountered (e.g. '\\z')."),
+            EscapeError::BareCarriageReturn => write!(f, "Bare carriage return '\\r' encountered."),
+            EscapeError::BareCarriageReturnInRawString => write!(f, "Bare carriage return '\\r' encountered in a raw string."),
+            EscapeError::EscapeOnlyChar => write!(f, "An unescaped character was found that should be escaped (e.g. a raw '\\t')."),
+            EscapeError::TooShortHexEscape => write!(f, "Numeric escape sequence is too short (e.g. '\\x1')."),
+            EscapeError::InvalidCharInHexEscape => write!(f, "Invalid character in numeric escape sequence (e.g. '\\xz')."),
+            EscapeError::OutOfRangeHexEscape => write!(f, "Numeric escape sequence specifies a non-ASCII character (e.g. '\\xFF')."),
+            EscapeError::NoBraceInUnicodeEscape => write!(f, "Unicode escape '\\u' not followed by '{{'."),
+            EscapeError::InvalidCharInUnicodeEscape => write!(f, "Non-hexadecimal character found in Unicode escape (e.g. '\\u{{GHI}}')."),
+            EscapeError::EmptyUnicodeEscape => write!(f, "Empty Unicode escape sequence ('\\u{{}}')."),
+            EscapeError::UnclosedUnicodeEscape => write!(f, "Unicode escape sequence is missing a closing brace (e.g. '\\u{{12')."),
+            EscapeError::LeadingUnderscoreUnicodeEscape => write!(f, "Leading underscore in Unicode escape sequence is not allowed (e.g. '\\u{{_12}}')."),
+            EscapeError::OverlongUnicodeEscape => write!(f, "Unicode escape sequence contains more than 6 digits (e.g. '\\u{{10FFFF_FF}}')."),
+            EscapeError::LoneSurrogateUnicodeEscape => write!(f, "Unicode escape sequence contains an invalid surrogate value (e.g. '\\u{{DFFF}}')."),
+            EscapeError::OutOfRangeUnicodeEscape => write!(f, "Unicode escape sequence is out of the allowed range (e.g. '\\u{{FFFFFF}}')."),
+            EscapeError::UnicodeEscapeInByte => write!(f, "Unicode escape sequence is not allowed in a byte literal."),
+            EscapeError::NonAsciiCharInByte => write!(f, "Non-ASCII character encountered in a byte literal, byte string literal, or raw byte string literal."),
+            EscapeError::NulInCStr => write!(f, "Null byte ('\\0') found in a C string literal."),
+            EscapeError::UnskippedWhitespaceWarning => write!(f, "After a line ending with '\\', the following line contains whitespace characters that were not skipped."),
+            EscapeError::MultipleSkippedLinesWarning => write!(f, "After a line ending with '\\', multiple subsequent lines were skipped."),
+        }
+    }
+}
+
 impl EscapeError {
     /// Returns true for actual errors, as opposed to warnings.
     pub fn is_fatal(&self) -> bool {

@@ -6,7 +6,7 @@ use super::{cursor::CharCursor, span::Span};
 use std::fmt::Display;
 
 /// The different spanned token kinds.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TokenKind {
     StringLiteral,
     Identifier,
@@ -300,26 +300,49 @@ impl<'a> CharCursor<'a> {
     }
 }
 
-/// Tokenize the input string.
-///
-/// # Arguments
-/// - `input`: The input string to tokenize.
-///
-/// # Returns
-/// An iterator over the tokens in the input string.
-pub fn tokenize(input: &str) -> impl Iterator<Item = Result<Token, NextTokenError>> + use<'_> {
-    let mut cursor = CharCursor::new(input);
+/// A tokenizer that tokenizes an input string.
+#[derive(Debug, Clone)]
+pub struct Tokenizer<'a> {
+    /// The cursor used to iterate over the input string.
+    cursor: CharCursor<'a>,
 
-    std::iter::from_fn(move || match cursor.next_token() {
-        Ok(token) => {
-            if token.is_end() {
-                None
-            } else {
+    /// Whether the end token has been emitted.
+    emitted_end: bool,
+}
+
+impl<'a> Tokenizer<'a> {
+    /// Create a new tokenizer.
+    ///
+    /// # Arguments
+    /// - `input`: The input string to tokenize.
+    ///
+    /// # Returns
+    /// A new tokenizer.
+    pub fn new(input: &'a str) -> Self {
+        Self {
+            cursor: CharCursor::new(input),
+            emitted_end: false,
+        }
+    }
+}
+
+impl<'a> Iterator for Tokenizer<'a> {
+    type Item = Result<Token, NextTokenError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.emitted_end {
+            return None;
+        }
+        match self.cursor.next_token() {
+            Ok(token) => {
+                if token.is_end() {
+                    self.emitted_end = true;
+                }
                 Some(Ok(token))
             }
+            Err(error) => Some(Err(error)),
         }
-        Err(error) => Some(Err(error)),
-    })
+    }
 }
 
 #[cfg(test)]
@@ -575,9 +598,11 @@ mod tests {
             Token::new(TokenKind::End, None),
         ];
 
-        let tokens: Vec<_> = tokenize(input).collect();
-        for (token, expected) in tokens.iter().zip(expected.iter()) {
-            assert_eq!(token.as_ref().unwrap(), expected);
+        let tokens: Vec<_> = Tokenizer::new(input).collect();
+
+        assert_eq!(tokens.len(), expected.len());
+        for (token, expected) in expected.iter().zip(tokens.iter()) {
+            assert_eq!(expected.as_ref().unwrap(), token);
         }
     }
 }
