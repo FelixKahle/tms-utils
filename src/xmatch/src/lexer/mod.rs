@@ -3,4 +3,5 @@
 pub mod cursor;
 pub mod err;
 pub mod token;
+pub mod tokenizer;
 pub mod ts;
