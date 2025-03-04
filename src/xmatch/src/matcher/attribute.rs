@@ -175,6 +175,31 @@ impl Default for XmlAttributeMatcher<'_> {
     }
 }
 
+impl<'a> From<(Option<&'a str>, Option<&'a str>)> for XmlAttributeMatcher<'a> {
+    /// Creates a new XML attribute matcher from a tuple of optional name and value.
+    ///
+    /// # Arguments
+    ///
+    /// * `tuple` - A tuple containing the optional name and value of the attribute.
+    ///
+    /// # Returns
+    ///
+    /// A new [`XmlAttributeMatcher`] instance with the name and value set to the values in the tuple.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use xmatch::matcher::attribute::XmlAttributeMatcher;
+    ///
+    /// let matcher = XmlAttributeMatcher::from((Some("class"), Some("highlight")));
+    /// assert_eq!(matcher.name(), Some("class"));
+    /// assert_eq!(matcher.value(), Some("highlight"));
+    /// ```
+    fn from(tuple: (Option<&'a str>, Option<&'a str>)) -> Self {
+        Self::new(tuple.0, tuple.1)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -211,5 +236,12 @@ mod tests {
 
         let matcher = XmlAttributeMatcher::new(None, None);
         assert_eq!(matcher.to_string(), "*=*");
+    }
+
+    #[test]
+    fn test_xml_attribute_matcher_from() {
+        let matcher = XmlAttributeMatcher::from((Some("name"), Some("value")));
+        assert_eq!(matcher.name(), Some("name"));
+        assert_eq!(matcher.value(), Some("value"));
     }
 }
