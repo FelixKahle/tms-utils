@@ -2,6 +2,5 @@
 
 #![allow(dead_code)]
 
-pub mod lexer;
-pub mod matcher;
-pub mod parser;
+pub mod compiler;
+pub mod err;

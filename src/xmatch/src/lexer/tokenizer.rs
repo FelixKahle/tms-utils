@@ -29,9 +29,9 @@
 //!
 //! // The first token is an identifier "element1".
 //! if let Some(Ok(token)) = tokenizer.next() {
-//!     assert_eq!(token.kind(), &TokenType::Identifier);
+//!     assert_eq!(token.token_type(), &TokenType::Identifier);
 //!     // The span indicates the position of "element1" in the input.
-//!     println!("Token: {} at {}", token.kind(), token.span());
+//!     println!("Token: {} at {}", token.token_type(), token.span());
 //! }
 //! ```
 
@@ -67,7 +67,7 @@ use super::{
 ///
 /// let mut tokenizer = Tokenizer::new("identifier");
 /// if let Some(Ok(token)) = tokenizer.next() {
-///     assert_eq!(token.kind(), &TokenType::Identifier);
+///     assert_eq!(token.token_type(), &TokenType::Identifier);
 /// }
 /// ```
 #[derive(Debug, Clone)]
@@ -237,43 +237,43 @@ mod tests {
         let text = "*";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::Asterisk);
+        assert_eq!(token.token_type(), &TokenType::Asterisk);
         assert_eq!(token.span(), &TextSpan::new(0, 1));
 
         let text = "/";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::ForwardSlash);
+        assert_eq!(token.token_type(), &TokenType::ForwardSlash);
         assert_eq!(token.span(), &TextSpan::new(0, 1));
 
         let text = "[";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::SquareBracketOpen);
+        assert_eq!(token.token_type(), &TokenType::SquareBracketOpen);
         assert_eq!(token.span(), &TextSpan::new(0, 1));
 
         let text = "]";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::SquareBracketClose);
+        assert_eq!(token.token_type(), &TokenType::SquareBracketClose);
         assert_eq!(token.span(), &TextSpan::new(0, 1));
 
         let text = "=";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::EqualSign);
+        assert_eq!(token.token_type(), &TokenType::EqualSign);
         assert_eq!(token.span(), &TextSpan::new(0, 1));
 
         let text = ",";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::Comma);
+        assert_eq!(token.token_type(), &TokenType::Comma);
         assert_eq!(token.span(), &TextSpan::new(0, 1));
 
         let text = "!";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::ExclamationMark);
+        assert_eq!(token.token_type(), &TokenType::ExclamationMark);
         assert_eq!(token.span(), &TextSpan::new(0, 1));
     }
 
@@ -310,7 +310,7 @@ mod tests {
         let text = "'string'";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::StringLiteral);
+        assert_eq!(token.token_type(), &TokenType::StringLiteral);
         assert_eq!(token.span(), &TextSpan::new(1, 7));
     }
 
@@ -319,7 +319,7 @@ mod tests {
         let text = "identifier";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::Identifier);
+        assert_eq!(token.token_type(), &TokenType::Identifier);
         assert_eq!(token.span(), &TextSpan::new(0, 10));
     }
 
@@ -328,7 +328,7 @@ mod tests {
         let text = "  identifier  ";
         let mut tokenizer = Tokenizer::new(text);
         let token = tokenizer.next().unwrap().unwrap();
-        assert_eq!(token.kind(), &TokenType::Identifier);
+        assert_eq!(token.token_type(), &TokenType::Identifier);
         assert_eq!(token.span(), &TextSpan::new(2, 12));
     }
 

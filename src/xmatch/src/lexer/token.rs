@@ -229,7 +229,7 @@ impl Display for TokenType {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     /// The type of the token (e.g., Identifier, StringLiteral).
-    kind: TokenType,
+    token_type: TokenType,
 
     /// The span in the source query where the token appears.
     span: TextSpan,
@@ -240,7 +240,7 @@ impl Token {
     ///
     /// # Arguments
     ///
-    /// * `kind` - The type of token, as defined by [`TokenType`].
+    /// * `token_type` - The type of token, as defined by [`TokenType`].
     /// * `span` - A [`TextSpan`] representing the token's location in the query.
     ///
     /// # Returns
@@ -255,8 +255,8 @@ impl Token {
     /// let token = Token::new(TokenType::Identifier, TextSpan::new(0, 7));
     /// assert_eq!(format!("{}", token), "Identifier[0..7]");
     /// ```
-    pub fn new(kind: TokenType, span: TextSpan) -> Self {
-        Self { kind, span }
+    pub fn new(token_type: TokenType, span: TextSpan) -> Self {
+        Self { token_type, span }
     }
 
     /// Returns the token's type.
@@ -271,10 +271,10 @@ impl Token {
     /// # use xmatch::lexer::ts::TextSpan;
     /// # use xmatch::lexer::token::{Token, TokenType};
     /// let token = Token::new(TokenType::Identifier, TextSpan::new(0, 7));
-    /// assert_eq!(token.kind(), &TokenType::Identifier);
+    /// assert_eq!(token.token_type(), &TokenType::Identifier);
     /// ```
-    pub fn kind(&self) -> &TokenType {
-        &self.kind
+    pub fn token_type(&self) -> &TokenType {
+        &self.token_type
     }
 
     /// Returns the token's span.
@@ -316,7 +316,7 @@ impl Display for Token {
     /// assert_eq!(format!("{}", token), "StringLiteral[10..18]");
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}[{}]", self.kind, self.span)
+        write!(f, "{}[{}]", self.token_type, self.span)
     }
 }
 
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn test_token_new() {
         let token = Token::new(TokenType::StringLiteral, TextSpan::new(1, 2));
-        assert_eq!(token.kind(), &TokenType::StringLiteral);
+        assert_eq!(token.token_type(), &TokenType::StringLiteral);
         assert_eq!(token.span(), &TextSpan::new(1, 2));
     }
 }
