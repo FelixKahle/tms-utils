@@ -349,6 +349,10 @@ impl<'a> From<&'a str> for CharCursor<'a> {
 impl Display for CharCursor<'_> {
     /// Formats the [`CharCursor`] for display by showing the remaining input.
     ///
+    /// # Arguments
+    ///
+    /// * `f` - The formatter to write to.
+    ///
     /// # Example
     ///
     /// ```rust

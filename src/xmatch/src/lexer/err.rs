@@ -37,10 +37,10 @@ impl UnterminatedStringLiteralError {
     /// Create a new `UnterminatedStringLiteralError` with the given span.
     ///
     /// # Arguments
-    /// - `span`: The span of the unterminated string literal.
+    /// * `span`: The span of the unterminated string literal.
     ///
     /// # Returns
-    /// The new `UnterminatedStringLiteralError`.
+    /// The new instance of [`UnterminatedStringLiteralError`].
     ///
     /// # Examples
     ///
@@ -59,7 +59,8 @@ impl UnterminatedStringLiteralError {
     /// Get the span of the unterminated string literal.
     ///
     /// # Returns
-    /// The span of the unterminated string literal.
+    ///
+    /// A [`TextSpan`] representing the span of the unterminated string literal.
     ///
     /// # Examples
     ///
@@ -80,7 +81,7 @@ impl Display for UnterminatedStringLiteralError {
     /// Format the error message for an unterminated string literal.
     ///
     /// # Arguments
-    /// - `f`: The formatter to write the error message to.
+    /// * `f`: The formatter to write the error message to.
     ///
     /// # Returns
     /// The result of writing the error message to the formatter.
@@ -106,9 +107,6 @@ impl std::error::Error for UnterminatedStringLiteralError {}
 /// This error is used to indicate that a character was encountered that was
 /// not expected.
 ///
-/// # Fields
-/// - `span`: The span of the unexpected character.
-///
 /// # Examples
 ///
 /// ```rust
@@ -128,9 +126,11 @@ impl UnexpectedCharacterError {
     /// Create a new `UnexpectedCharacterError` with the given span.
     ///
     /// # Arguments
-    /// - `span`: The span of the unexpected character.
+    ///
+    /// * `span`: The span of the unexpected character.
     ///
     /// # Returns
+    ///
     /// The new `UnexpectedCharacterError`.
     ///
     /// # Examples
@@ -150,7 +150,8 @@ impl UnexpectedCharacterError {
     /// Get the span of the unexpected character.
     ///
     /// # Returns
-    /// The span of the unexpected character.
+    ///
+    /// A [`TextSpan`] representing the span of the unexpected character.
     ///
     /// # Examples
     ///
@@ -171,9 +172,11 @@ impl Display for UnexpectedCharacterError {
     /// Format the error message for an unexpected character.
     ///
     /// # Arguments
-    /// - `f`: The formatter to write the error message to.
+    ///
+    /// * `f`: The formatter to write the error message to.
     ///
     /// # Returns
+    ///
     /// The result of writing the error message to the formatter.
     ///
     /// # Examples
@@ -209,7 +212,8 @@ impl Display for NextTokenError {
     /// Format the error message for a next token error.
     ///
     /// # Arguments
-    /// - `f`: The formatter to write the error message to.
+    ///
+    /// * `f`: The formatter to write the error message to.
     ///
     /// # Returns
     /// The result of writing the error message to the formatter.
@@ -238,7 +242,8 @@ impl From<UnterminatedStringLiteralError> for NextTokenError {
     /// Convert an `UnterminatedStringLiteralError` into a `NextTokenError`.
     ///
     /// # Arguments
-    /// - `error`: The unterminated string literal error to convert.
+    ///
+    /// * `error`: The unterminated string literal error to convert.
     ///
     /// # Returns
     /// The converted next token error.
@@ -263,7 +268,8 @@ impl From<UnexpectedCharacterError> for NextTokenError {
     /// Convert an `UnexpectedCharacterError` into a `NextTokenError`.
     ///
     /// # Arguments
-    /// - `error`: The unexpected character error to convert.
+    ///
+    /// * `error`: The unexpected character error to convert.
     ///
     /// # Returns
     /// The converted next token error.

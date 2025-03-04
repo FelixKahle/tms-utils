@@ -168,6 +168,32 @@ pub enum TokenType {
 }
 
 impl Display for TokenType {
+    /// Formats the [`TokenType`] as a string.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The formatter to write the token type to.
+    ///
+    /// # Returns
+    ///
+    /// The result of writing the token type to the formatter.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use xmatch::lexer::token::TokenType;
+    ///
+    /// assert_eq!(format!("{}", TokenType::StringLiteral), "StringLiteral");
+    /// assert_eq!(format!("{}", TokenType::Identifier), "Identifier");
+    /// assert_eq!(format!("{}", TokenType::SquareBracketOpen), "SquareBracketOpen");
+    /// assert_eq!(format!("{}", TokenType::SquareBracketClose), "SquareBracketClose");
+    /// assert_eq!(format!("{}", TokenType::EqualSign), "EqualSign");
+    /// assert_eq!(format!("{}", TokenType::Comma), "Comma");
+    /// assert_eq!(format!("{}", TokenType::Asterisk), "Asterisk");
+    /// assert_eq!(format!("{}", TokenType::ForwardSlash), "ForwardSlash");
+    /// assert_eq!(format!("{}", TokenType::ExclamationMark), "ExclamationMark");
+    /// assert_eq!(format!("{}", TokenType::Colon), "Colon");
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TokenType::StringLiteral => write!(f, "StringLiteral"),
@@ -216,6 +242,10 @@ impl Token {
     ///
     /// * `kind` - The type of token, as defined by [`TokenType`].
     /// * `span` - A [`TextSpan`] representing the token's location in the query.
+    ///
+    /// # Returns
+    ///
+    /// A new [`Token`] with the specified type and span.
     ///
     /// # Example
     ///
@@ -268,6 +298,14 @@ impl Token {
 
 impl Display for Token {
     /// Formats the [`Token`] as "TokenType[span]".
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The formatter to write the token to.
+    ///
+    /// # Returns
+    ///
+    /// The result of writing the token to the formatter.
     ///
     /// # Example
     ///

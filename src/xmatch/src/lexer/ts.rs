@@ -194,6 +194,14 @@ impl Default for TextSpan {
 impl From<std::ops::Range<usize>> for TextSpan {
     /// Converts a range into a [`TextSpan`].
     ///
+    /// # Arguments
+    ///
+    /// * `span` - The range to convert.
+    ///
+    /// # Returns
+    ///
+    /// A new [`TextSpan`] covering the same indices as the range.
+    ///
     /// # Example
     ///
     /// ```rust
@@ -214,6 +222,10 @@ impl From<&str> for TextSpan {
     /// # Arguments
     /// - `span` - The string slice to create a span for.
     ///
+    /// # Returns
+    ///
+    /// A new [`TextSpan`] covering the entire string slice.
+    ///
     /// # Example
     ///
     /// ```rust
@@ -231,6 +243,10 @@ impl From<&str> for TextSpan {
 
 impl From<TextSpan> for std::ops::Range<usize> {
     /// Converts a [`TextSpan`] into a [`std::ops::Range<usize>`].
+    ///
+    /// # Arguments
+    ///
+    /// * `val` - The span to convert.
     ///
     /// # Returns
     /// The range from the start index (inclusive) to the end index (exclusive).
@@ -250,6 +266,14 @@ impl From<TextSpan> for std::ops::Range<usize> {
 
 impl Display for TextSpan {
     /// Formats the [`TextSpan`] as a range in the form "start..end".
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - The formatter to write to.
+    ///
+    /// # Returns
+    ///
+    /// A [`std::fmt::Result`] indicating if the formatting was successful.
     ///
     /// # Example
     ///

@@ -90,8 +90,8 @@ impl<'a> XmlElementMatcher<'a> {
     ///
     /// # Arguments
     ///
-    /// - `name` - The name of the element (or `None` for a wildcard match).
-    /// - `attributes` - A set of attribute matchers that further specify constraints on the element.
+    /// * `name` - The name of the element (or `None` for a wildcard match).
+    /// * `attributes` - A set of attribute matchers that further specify constraints on the element.
     ///
     /// # Returns
     ///
@@ -180,6 +180,10 @@ impl Display for XmlElementMatcher<'_> {
 
 impl Default for XmlElementMatcher<'_> {
     /// Returns a default XML element matcher with no name and no attributes.
+    ///
+    /// # Returns
+    ///
+    /// A new [`XmlElementMatcher`] instance with no name and an empty set of attributes.
     ///
     /// # Examples
     ///
