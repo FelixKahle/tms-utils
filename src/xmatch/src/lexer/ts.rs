@@ -133,6 +133,25 @@ impl TextSpan {
         self.end - self.start
     }
 
+    /// Checks if the span is empty.
+    ///
+    /// A span is considered empty if its start and end indices are equal.
+    ///
+    /// # Returns
+    /// `true` if the span is empty, `false` otherwise.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use xmatch::lexer::ts::TextSpan;
+    ///
+    /// let span = TextSpan::new(0, 0);
+    /// assert!(span.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.start == self.end
+    }
+
     /// Converts the span into a [`std::ops::Range<usize>`].
     ///
     /// The resulting range covers the same indices as the span.
@@ -210,7 +229,7 @@ impl From<&str> for TextSpan {
     }
 }
 
-impl Into<std::ops::Range<usize>> for TextSpan {
+impl From<TextSpan> for std::ops::Range<usize> {
     /// Converts a [`TextSpan`] into a [`std::ops::Range<usize>`].
     ///
     /// # Returns
@@ -224,8 +243,8 @@ impl Into<std::ops::Range<usize>> for TextSpan {
     /// let range: std::ops::Range<usize> = span.into();
     /// assert_eq!(range, 0..3);
     /// ```
-    fn into(self) -> std::ops::Range<usize> {
-        self.as_range()
+    fn from(val: TextSpan) -> Self {
+        val.as_range()
     }
 }
 
@@ -296,5 +315,11 @@ mod tests {
         let span = TextSpan::new(0, 1);
         let range: std::ops::Range<usize> = span.into();
         assert_eq!(range, 0..1);
+    }
+
+    #[test]
+    fn test_text_span_is_empty() {
+        let span = TextSpan::new(0, 0);
+        assert!(span.is_empty());
     }
 }

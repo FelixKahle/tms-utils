@@ -124,7 +124,7 @@ impl<'a> Tokenizer<'a> {
     }
 }
 
-impl<'a> Iterator for Tokenizer<'a> {
+impl Iterator for Tokenizer<'_> {
     type Item = Result<Token, NextTokenError>;
 
     /// Produces the next token or an error if tokenization fails.
@@ -142,20 +142,17 @@ impl<'a> Iterator for Tokenizer<'a> {
         self.cursor.skip_whitespace();
 
         let consumed_bytes = self.cursor.nconsumed_bytes();
-        let current_char = match self.cursor.next() {
-            Some(c) => c,
-            None => return None,
-        };
+        let current_char = self.cursor.next()?;
 
         match current_char {
-            '*' => return Some(Ok(Token::new(TokenType::Asterisk, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
-            '/' => return Some(Ok(Token::new(TokenType::ForwardSlash, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
-            '[' => return Some(Ok(Token::new(TokenType::SquareBracketOpen, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
-            ']' => return Some(Ok(Token::new(TokenType::SquareBracketClose, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
-            '=' => return Some(Ok(Token::new(TokenType::EqualSign, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
-            ',' => return Some(Ok(Token::new(TokenType::Comma, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
-            '!' => return Some(Ok(Token::new(TokenType::ExclamationMark, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
-            ':' => return Some(Ok(Token::new(TokenType::Colon, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
+            '*' => Some(Ok(Token::new(TokenType::Asterisk, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
+            '/' => Some(Ok(Token::new(TokenType::ForwardSlash, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
+            '[' => Some(Ok(Token::new(TokenType::SquareBracketOpen, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
+            ']' => Some(Ok(Token::new(TokenType::SquareBracketClose, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
+            '=' => Some(Ok(Token::new(TokenType::EqualSign, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
+            ',' => Some(Ok(Token::new(TokenType::Comma, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
+            '!' => Some(Ok(Token::new(TokenType::ExclamationMark, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
+            ':' => Some(Ok(Token::new(TokenType::Colon, TextSpan::new(consumed_bytes, consumed_bytes + 1)))),
             '\'' => {
                 if self.consume_string_literal() {
                     // The string literal is delimited by quotes.
@@ -168,16 +165,16 @@ impl<'a> Iterator for Tokenizer<'a> {
                 }
                 // If no closing quote was found, return an error.
                 let last_position = self.cursor.nconsumed_bytes();
-                return Some(Err(UnexpectedCharacterError::new(TextSpan::new(last_position, last_position + 1)).into()));
+                Some(Err(UnexpectedCharacterError::new(TextSpan::new(last_position, last_position + 1)).into()))
             }
             c if is_id_start(c) => {
                 // Consume the full identifier.
                 self.cursor.consume_while(is_id_continue);
                 let identifier_end = self.cursor.nconsumed_bytes();
                 let identifier_span = TextSpan::new(consumed_bytes, identifier_end);
-                return Some(Ok(Token::new(TokenType::Identifier, identifier_span)));
+                Some(Ok(Token::new(TokenType::Identifier, identifier_span)))
             }
-            _ => return Some(Err(UnexpectedCharacterError::new(TextSpan::new(consumed_bytes, consumed_bytes + 1)).into())),
+            _ => Some(Err(UnexpectedCharacterError::new(TextSpan::new(consumed_bytes, consumed_bytes + 1)).into())),
         }
     }
 }
