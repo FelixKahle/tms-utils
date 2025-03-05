@@ -34,8 +34,9 @@
 //! println!("Token 2: {}", token2); // e.g., prints "StringLiteral[10..18]"
 //! ```
 
-use super::ts::TextSpan;
 use std::fmt::Display;
+
+use super::ts::TextSpan;
 
 /// Enumerates the different token types used in the matching language.
 ///

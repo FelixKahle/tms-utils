@@ -4,12 +4,14 @@
 
 use std::collections::HashSet;
 
+use super::err::{UnexpectedTokenError, XMatchCompileError};
 use crate::{
     lexer::{token::TokenType, tokenizer::Tokenizer},
     matcher::attribute::XmlAttributeMatcher,
 };
 
-use super::err::{UnexpectedTokenError, XMatchCompileError};
+/// A type alias for a peekable iterator over tokens produced by a [`Tokenizer`].
+pub type TokenIterator<'a> = std::iter::Peekable<Tokenizer<'a>>;
 
 /// Parses an XML attribute from the given input using the provided tokenizer.
 ///
@@ -21,36 +23,34 @@ use super::err::{UnexpectedTokenError, XMatchCompileError};
 /// # Arguments
 ///
 /// * `input` - The original input string containing the attribute.
-/// * `tokens` - A mutable reference to a [`Tokenizer`] that produces tokens from the input.
+/// * `tokens` - A mutable reference to a [`TokenIterator`] that produces tokens from the input.
 ///
 /// # Returns
 ///
 /// Returns `Ok(XmlAttributeMatcher)` if the attribute is successfully parsed, or [`XMatchCompileError`]
 /// if parsing fails.
-fn parse_attribute<'a>(input: &'a str, tokens: &mut Tokenizer<'a>) -> Result<XmlAttributeMatcher<'a>, XMatchCompileError> {
-    // Extract the first three tokens which should correspond to the attribute name,
-    // the equal sign, and the attribute value respectively.
+fn parse_attribute<'a>(input: &'a str, tokens: &mut TokenIterator<'a>) -> Result<XmlAttributeMatcher<'a>, XMatchCompileError> {
+    // This should be the attribute name, so we expect an identifier or an asterisk.
     let first_token = match tokens.next() {
         Some(Ok(token)) => token,
         Some(Err(err)) => return Err(err.into()),
         None => return Err(XMatchCompileError::UnexpectedEndOfInput),
     };
 
+    // This should be the equal sign.
     let second_token = match tokens.next() {
         Some(Ok(token)) => token,
         Some(Err(err)) => return Err(err.into()),
         None => return Err(XMatchCompileError::UnexpectedEndOfInput),
     };
 
+    // This should be the attribute value, so we expect a string literal or an asterisk.
     let third_token = match tokens.next() {
         Some(Ok(token)) => token,
         Some(Err(err)) => return Err(err.into()),
         None => return Err(XMatchCompileError::UnexpectedEndOfInput),
     };
 
-    // Determine the attribute name based on the first token.
-    // If the token type is an asterisk, we interpret it as a wildcard (None).
-    // Otherwise, for an identifier token, we extract the substring using the token's span.
     let attribute_name = match first_token.token_type() {
         TokenType::Asterisk => None,
         TokenType::Identifier => {
@@ -100,11 +100,39 @@ fn parse_attribute<'a>(input: &'a str, tokens: &mut Tokenizer<'a>) -> Result<Xml
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lexer::token::TokenType;
+
+    /// Helper function to assert that the next token (both peeked and consumed) matches the expected type.
+    ///
+    /// # Arguments
+    ///
+    /// * `tokens` - The token iterator to peek and consume from.
+    /// * `expected` - The expected token type.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the next token is not of the expected type.
+    fn assert_peek_and_next(tokens: &mut TokenIterator, expected: &TokenType) {
+        let peeked = tokens.peek().expect("Expected a token from peek").as_ref().expect("Token should be Ok");
+        assert_eq!(peeked.token_type(), expected);
+
+        let token = tokens.next().expect("Expected a token from next").expect("Token should be Ok");
+        assert_eq!(token.token_type(), expected);
+    }
+
+    #[test]
+    fn test_token_iterator_peek() {
+        let input = "name='Felix'";
+        let mut tokens: TokenIterator = Tokenizer::new(input).peekable();
+
+        assert_peek_and_next(&mut tokens, &TokenType::Identifier);
+        assert_peek_and_next(&mut tokens, &TokenType::EqualSign);
+    }
 
     #[test]
     fn test_parse_attribute() {
         let input = "class='div'";
-        let mut tokenizer = Tokenizer::new(input);
+        let mut tokenizer = Tokenizer::new(input).peekable();
         let result = parse_attribute(input, &mut tokenizer);
         assert!(result.is_ok());
 
@@ -116,7 +144,7 @@ mod tests {
     #[test]
     fn test_parse_attribute_unexpected_token() {
         let input = "class&'div'";
-        let mut tokenizer = Tokenizer::new(input);
+        let mut tokenizer = Tokenizer::new(input).peekable();
 
         let result = parse_attribute(input, &mut tokenizer);
         assert!(result.is_err());

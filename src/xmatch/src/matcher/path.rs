@@ -30,8 +30,9 @@
 //! println!("{}", path); // Expected output: "element1[]/element2[]"
 //! ```
 
-use super::element::XmlElementMatcher;
 use std::fmt::Display;
+
+use super::element::XmlElementMatcher;
 
 /// Represents a matcher for an XML path.
 ///

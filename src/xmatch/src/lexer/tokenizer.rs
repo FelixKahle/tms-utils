@@ -190,16 +190,7 @@ impl Iterator for Tokenizer<'_> {
 /// # Returns
 ///
 /// `true` if `c` is valid as the first character of an identifier, `false` otherwise.
-///
-/// # Example
-///
-/// ```rust
-/// # use xmatch::lexer::tokenizer::is_id_start;
-/// assert!(is_id_start('a'));
-/// assert!(is_id_start('_'));
-/// assert!(!is_id_start('1'));
-/// ```
-pub fn is_id_start(c: char) -> bool {
+fn is_id_start(c: char) -> bool {
     // Valid identifier start characters: XID_Start or '_' (which is not formally XID_Start).
     c == '_' || unicode_xid::UnicodeXID::is_xid_start(c)
 }
@@ -215,16 +206,7 @@ pub fn is_id_start(c: char) -> bool {
 /// # Returns
 ///
 /// `true` if `c` is valid as a subsequent character in an identifier, `false` otherwise.
-///
-/// # Example
-///
-/// ```rust
-/// # use xmatch::lexer::tokenizer::is_id_continue;
-/// assert!(is_id_continue('a'));
-/// assert!(is_id_continue('1'));
-/// assert!(!is_id_continue('@'));
-/// ```
-pub fn is_id_continue(c: char) -> bool {
+fn is_id_continue(c: char) -> bool {
     unicode_xid::UnicodeXID::is_xid_continue(c)
 }
 

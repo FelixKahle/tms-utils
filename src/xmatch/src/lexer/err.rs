@@ -7,8 +7,9 @@
 //! The errors are used to indicate that an unterminated string literal was
 //! encountered or that an unexpected character was encountered.
 
-use super::ts::TextSpan;
 use std::fmt::Display;
+
+use super::ts::TextSpan;
 
 /// An error that occurs when an unterminated string literal is encountered.
 /// This error is used to indicate that a string literal was started but never

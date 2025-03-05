@@ -41,8 +41,9 @@
 //! assert_eq!(format!("{}", compile_error), "Expected one of [Identifier], found Asterisk");
 //! ```
 
-use crate::lexer::{err::NextTokenError, token::TokenType};
 use std::{collections::HashSet, fmt::Display};
+
+use crate::lexer::{err::NextTokenError, token::TokenType};
 
 /// An error representing an unexpected token encountered during parsing.
 ///

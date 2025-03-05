@@ -41,8 +41,9 @@
 //! println!("{}", matcher); // Expected output: "*[class=header]"
 //! ```
 
-use super::attribute::XmlAttributeMatcher;
 use std::{collections::HashSet, fmt::Display};
+
+use super::attribute::XmlAttributeMatcher;
 
 /// A matcher for XML elements.
 ///
