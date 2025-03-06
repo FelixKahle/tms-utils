@@ -32,6 +32,11 @@
 
 use std::fmt::Display;
 
+use crate::{
+    lexer::tokenizer::Tokenizer,
+    parser::{compiler::parse_path, err::XMatchCompileError},
+};
+
 use super::element::XmlElementMatcher;
 
 /// Represents a matcher for an XML path.
@@ -87,6 +92,22 @@ impl<'a> XmlPathMatcher<'a> {
     /// ```
     pub fn new(path: Vec<XmlElementMatcher<'a>>) -> Self {
         Self { path }
+    }
+
+    /// Compiles an XML path matcher from a string input.
+    ///
+    /// The input string is parsed into a sequence of element matchers that make up the path.
+    ///
+    /// # Arguments
+    ///
+    /// * `input` - A string containing the XML path matcher.
+    ///
+    /// # Returns
+    ///
+    /// A new [`XmlPathMatcher`] instance.
+    pub fn compile(input: &'a str) -> Result<Self, XMatchCompileError> {
+        let mut tokens = Tokenizer::new(input).peekable();
+        return parse_path(input, &mut tokens);
     }
 
     /// Returns a slice of the element matchers in the path.
@@ -175,6 +196,12 @@ mod tests {
         let element1 = XmlElementMatcher::new(Some("element1"), [(Some("class"), Some("div")).into()].into_iter().collect());
         let element2 = XmlElementMatcher::new(Some("element2"), [(Some("class"), Some("span")).into()].into_iter().collect());
         let path = XmlPathMatcher::new(vec![element1, element2]);
+        assert_eq!(format!("{}", path), "element1[class=div]/element2[class=span]");
+    }
+
+    #[test]
+    pub fn test_xml_path_matcher_compile() {
+        let path = XmlPathMatcher::compile("element1[class='div']/element2[class='span']").unwrap();
         assert_eq!(format!("{}", path), "element1[class=div]/element2[class=span]");
     }
 }
