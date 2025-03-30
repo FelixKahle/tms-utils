@@ -32,7 +32,7 @@
 ///
 /// # Invariants
 /// - The suffix is always `"CL"`.
-/// - The numeric part can be any valid `u64` value.
+/// - The numeric part can be any valid [`u64`] value.
 ///
 /// # Examples
 ///
@@ -111,7 +111,7 @@ impl JobNumber {
 }
 
 impl From<u64> for JobNumber {
-    /// Converts a `u64` into a `JobNumber` by wrapping the value and appending the constant suffix.
+    /// Converts a [`u64`] into a `JobNumber` by wrapping the value and appending the constant suffix.
     ///
     /// This conversion provides a convenient way to create a `JobNumber` from a numeric value.
     ///
@@ -139,7 +139,7 @@ impl From<u64> for JobNumber {
 impl Into<u64> for JobNumber {
     /// Extracts the numeric value from a `JobNumber`.
     ///
-    /// This conversion allows a `JobNumber` to be used directly in contexts where a `u64` is expected.
+    /// This conversion allows a `JobNumber` to be used directly in contexts where a [`u64`] is expected.
     ///
     /// # Returns
     ///
@@ -164,8 +164,8 @@ impl std::ops::Deref for JobNumber {
 
     /// Dereferences the `JobNumber` to yield its numeric component.
     ///
-    /// This implementation enables treating a `JobNumber` as if it were a `u64` in arithmetic operations,
-    /// comparisons, and other contexts where a reference to a `u64` is required.
+    /// This implementation enables treating a `JobNumber` as if it were a [`u64`] in arithmetic operations,
+    /// comparisons, and other contexts where a reference to a [`u64`] is required.
     ///
     /// # Returns
     ///
@@ -195,7 +195,7 @@ impl std::fmt::Display for JobNumber {
     ///
     /// # Returns
     ///
-    /// A `Result` indicating whether the formatting operation was successful.
+    /// A [`Result`] indicating whether the formatting operation was successful.
     ///
     /// # Example
     ///
@@ -217,7 +217,7 @@ impl std::fmt::Display for JobNumber {
 ///
 /// # Error Variants
 ///
-/// - `ParseIntError`: The numeric part of the string failed to parse as a `u64`.
+/// - [`ParseIntError`]: The numeric part of the string failed to parse as a [`u64`].
 /// - `MissingCLSufix`: The input string does not end with the required suffix `"CL"`.
 ///
 /// # Example
@@ -232,7 +232,7 @@ impl std::fmt::Display for JobNumber {
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseJobNumberError {
-    /// Error when the numeric part cannot be parsed into a `u64`.
+    /// Error when the numeric part cannot be parsed into a [`u64`].
     ParseIntError(std::num::ParseIntError),
 
     /// Error indicating that the expected suffix `"CL"` is missing.
@@ -240,7 +240,7 @@ pub enum ParseJobNumberError {
 }
 
 impl From<std::num::ParseIntError> for ParseJobNumberError {
-    /// Converts a `std::num::ParseIntError` into a `ParseJobNumberError::ParseIntError`.
+    /// Converts a [`std::num::ParseIntError`] into a `ParseJobNumberError::ParseIntError`.
     ///
     /// This allows for seamless error propagation using the `?` operator during parsing.
     ///
@@ -277,7 +277,7 @@ impl std::fmt::Display for ParseJobNumberError {
     ///
     /// # Returns
     ///
-    /// A `Result` indicating whether the formatting was successful.
+    /// A [`Result`] indicating whether the formatting was successful.
     ///
     /// # Example
     ///
@@ -333,7 +333,10 @@ impl std::str::FromStr for JobNumber {
     /// assert_eq!(error.to_string(), "the 'CL' suffix is missing");
     /// ```
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value = s.strip_suffix(Self::SUFFIX).ok_or(ParseJobNumberError::MissingCLSufix)?.parse()?;
+        let value = s
+            .strip_suffix(Self::SUFFIX)
+            .ok_or(ParseJobNumberError::MissingCLSufix)?
+            .parse()?;
         Ok(Self::new(value))
     }
 }
@@ -394,7 +397,8 @@ impl<'de> serde::Deserialize<'de> for JobNumber {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        s.parse::<JobNumber>().map_err(|err: ParseJobNumberError| serde::de::Error::custom(err))
+        s.parse::<JobNumber>()
+            .map_err(|err: ParseJobNumberError| serde::de::Error::custom(err))
     }
 }
 
@@ -443,7 +447,10 @@ mod tests {
     fn test_parse_job_number_error_display() {
         let parse_int_error = "abc".parse::<u64>().unwrap_err();
         let error = ParseJobNumberError::from(parse_int_error.clone());
-        assert_eq!(error.to_string(), format!("failed to parse integer: {}", parse_int_error));
+        assert_eq!(
+            error.to_string(),
+            format!("failed to parse integer: {}", parse_int_error)
+        );
 
         let error = ParseJobNumberError::MissingCLSufix;
         assert_eq!(error.to_string(), "the 'CL' suffix is missing");

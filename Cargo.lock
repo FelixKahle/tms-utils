@@ -24,6 +24,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37dddbbe9df96afafcb8027fcf263971b726530e12f0787f620a7ba5b4846081"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -93,4 +102,11 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "xml_parser"
+version = "0.1.0"
+dependencies = [
+ "quick-xml",
 ]
