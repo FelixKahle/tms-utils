@@ -2,115 +2,127 @@
 
 #![allow(dead_code)]
 
-/// A struct representing an XML attributeibute.
-///
-/// # Example
+use quick_xml::name::QName;
+use std::borrow::Cow;
+
+/// Represents an XML attribute as a `(name="value")` pair.
 ///
 /// ```rust
 /// use xml_parser::attribute::XmlAttribute;
+/// use quick_xml::name::QName;
+/// use std::borrow::Cow;
 ///
-/// let attribute = XmlAttribute::new("id".to_string(), "123".to_string());
-/// assert_eq!(attribute.name(), "id");
-/// assert_eq!(attribute.value(), "123");
+/// let attr = XmlAttribute::new(QName(b"id"), Cow::Borrowed(b"123"));
+/// assert_eq!(attr.name().as_ref(), b"id");
+/// assert_eq!(attr.value(), b"123");
+/// assert_eq!(attr.to_string(), "id=\"123\"");
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct XmlAttribute {
-    name: String,
-    value: String,
+pub struct XmlAttribute<'a> {
+    name: QName<'a>,
+    value: Cow<'a, [u8]>,
 }
 
-impl XmlAttribute {
-    /// Creates a new `XmlAttribute` with the specified name and value.
+impl<'a> XmlAttribute<'a> {
+    /// Creates a new attribute with the given name and value.
     ///
     /// # Arguments
     ///
-    /// * `name` - A [`String`] representing the attributeibute's name.
-    /// * `value` - A [`String`] representing the attributeibute's value.
+    /// * `name` - The name of the attribute.
+    /// * `value` - The value of the attribute.
     ///
     /// # Returns
-    ///
-    /// A new instance of `XmlAttribute`.
+    /// A new `XmlAttribute` instance.
     ///
     /// # Example
     ///
     /// ```rust
     /// use xml_parser::attribute::XmlAttribute;
+    /// use quick_xml::name::QName;
+    /// use std::borrow::Cow;
     ///
-    /// let attribute = XmlAttribute::new("id".to_string(), "123".to_string());
-    /// assert_eq!(attribute.name(), "id");
-    /// assert_eq!(attribute.value(), "123");
+    /// let attribute = XmlAttribute::new(QName(b"id"), Cow::Borrowed(b"123"));
+    /// assert_eq!(attribute.name().as_ref(), b"id");
+    /// assert_eq!(attribute.value(), b"123");
     /// ```
-    pub fn new(name: String, value: String) -> XmlAttribute {
+    pub fn new(name: QName<'a>, value: Cow<'a, [u8]>) -> Self {
         XmlAttribute { name, value }
     }
 
-    /// Returns a reference to the attributeibute's name.
+    /// Returns the name of the attribute.
     ///
     /// # Returns
-    ///
-    /// A string slice containing the attributeibute's name.
+    /// A reference to the name of the attribute.
     ///
     /// # Example
     ///
     /// ```rust
     /// use xml_parser::attribute::XmlAttribute;
+    /// use quick_xml::name::QName;
+    /// use std::borrow::Cow;
     ///
-    /// let attribute = XmlAttribute::new("class".to_string(), "button".to_string());
-    /// assert_eq!(attribute.name(), "class");
+    /// let attribute = XmlAttribute::new(QName(b"id"), Cow::Borrowed(b"123"));
+    /// assert_eq!(attribute.name().as_ref(), b"id");
     /// ```
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &QName<'a> {
         &self.name
     }
 
-    /// Returns a reference to the attributeibute's value.
+    /// Returns the value of the attribute.
     ///
     /// # Returns
-    ///
-    /// A string slice containing the attributeibute's value.
+    /// A slice of bytes representing the value of the attribute.
     ///
     /// # Example
     ///
     /// ```rust
     /// use xml_parser::attribute::XmlAttribute;
+    /// use quick_xml::name::QName;
+    /// use std::borrow::Cow;
     ///
-    /// let attribute = XmlAttribute::new("class".to_string(), "button".to_string());
-    /// assert_eq!(attribute.value(), "button");
+    /// let attribute = XmlAttribute::new(QName(b"id"), Cow::Borrowed(b"123"));
+    /// assert_eq!(attribute.value(), b"123");
     /// ```
-    pub fn value(&self) -> &str {
+    pub fn value(&self) -> &[u8] {
         &self.value
     }
 }
 
-impl std::fmt::Display for XmlAttribute {
-    /// Formats the attributeibute as a string.
+impl<'a> std::fmt::Display for XmlAttribute<'a> {
+    /// Formats the attribute as a string.
     ///
-    /// # Arguments
+    /// Writes the attribute to the given formatter.
+    ///
+    /// # Attributes
     ///
     /// * `f` - The formatter to write to.
     ///
     /// # Returns
-    ///
     /// A [`std::fmt::Result`] indicating the success of the operation.
     ///
     /// # Example
     ///
     /// ```rust
     /// use xml_parser::attribute::XmlAttribute;
+    /// use quick_xml::name::QName;
+    /// use std::borrow::Cow;
     ///
-    /// let attribute = XmlAttribute::new("class".to_string(), "button".to_string());
-    /// assert_eq!(format!("{}", attribute), "class=\"button\"");
+    /// let attribute = XmlAttribute::new(QName(b"id"), Cow::Borrowed(b"123"));
+    /// assert_eq!(attribute.to_string(), "id=\"123\"");
     /// ```
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}=\"{}\"", self.name, self.value)
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name_str = std::str::from_utf8(self.name.as_ref()).map_err(|_| std::fmt::Error)?;
+        let value_str = std::str::from_utf8(self.value.as_ref()).map_err(|_| std::fmt::Error)?;
+        write!(f, "{}=\"{}\"", name_str, value_str)
     }
 }
 
-impl<'a> From<quick_xml::events::attributes::Attribute<'a>> for XmlAttribute {
-    /// Convert a [`quick_xml::events::attributes::attributeibute`] into a `XmlAttribute`.
+impl<'a> From<quick_xml::events::attributes::Attribute<'a>> for XmlAttribute<'a> {
+    /// Convert a [`quick_xml::events::attributes::Attribute`] into a `XmlAttribute`.
     ///
     /// # Arguments
     ///
-    /// * `attributeibute` - The attributeibute to convert.
+    /// * `attribute` - The attribute to convert.
     ///
     /// Returns
     ///
@@ -125,12 +137,13 @@ impl<'a> From<quick_xml::events::attributes::Attribute<'a>> for XmlAttribute {
     /// let features = Attribute::from(("name", "value"));
     /// let xml_attribute = XmlAttribute::from(features);
     ///
-    /// assert_eq!(xml_attribute.name(), "name");
-    /// assert_eq!(xml_attribute.value(), "value");
+    /// assert_eq!(xml_attribute.name().as_ref(), b"name");
+    /// assert_eq!(xml_attribute.value(), b"value");
     /// ```
-    fn from(attributeibute: quick_xml::events::attributes::Attribute) -> Self {
-        let name = String::from_utf8_lossy(attributeibute.key.as_ref()).into_owned();
-        let value = String::from_utf8_lossy(attributeibute.value.as_ref()).into_owned();
-        XmlAttribute::new(name, value)
+    fn from(attribute: quick_xml::events::attributes::Attribute<'a>) -> Self {
+        XmlAttribute {
+            name: attribute.key,
+            value: attribute.value,
+        }
     }
 }

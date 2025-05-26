@@ -7,3 +7,4 @@ edition = "2024"
 
 [dependencies]
 quick-xml = "0.24.1"
+wkt = { path = "../wkt" }
