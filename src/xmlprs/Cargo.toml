@@ -1,10 +1,9 @@
 # Copyright 2025 Felix Kahle. All rights reserved.
 
 [package]
-name = "xml_parser"
+name = "xmlprs"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-quick-xml = "0.24.1"
-wkt = { path = "../wkt" }
+quick-xml = ">=0.24.1"

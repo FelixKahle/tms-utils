@@ -28,7 +28,8 @@
 /// A `JobNumber` represents a job identifier composed of a numeric value and a constant suffix.
 ///
 /// The numeric part is stored as an unsigned 64-bit integer (`u64`). The constant suffix `"CL"`
-/// is always appended to the numeric value to form the complete, formal representation of the job number.
+/// is always appended to the numeric value to form the complete,
+/// formal representation of the job number.
 ///
 /// # Invariants
 /// - The suffix is always `"CL"`.
@@ -111,7 +112,8 @@ impl JobNumber {
 }
 
 impl From<u64> for JobNumber {
-    /// Converts a [`u64`] into a `JobNumber` by wrapping the value and appending the constant suffix.
+    /// Converts a [`u64`] into a `JobNumber` by wrapping the value and
+    /// appending the constant suffix.
     ///
     /// This conversion provides a convenient way to create a `JobNumber` from a numeric value.
     ///
@@ -139,7 +141,8 @@ impl From<u64> for JobNumber {
 impl Into<u64> for JobNumber {
     /// Extracts the numeric value from a `JobNumber`.
     ///
-    /// This conversion allows a `JobNumber` to be used directly in contexts where a [`u64`] is expected.
+    /// This conversion allows a `JobNumber` to be used directly
+    /// in contexts where a [`u64`] is expected.
     ///
     /// # Returns
     ///
@@ -164,7 +167,8 @@ impl std::ops::Deref for JobNumber {
 
     /// Dereferences the `JobNumber` to yield its numeric component.
     ///
-    /// This implementation enables treating a `JobNumber` as if it were a [`u64`] in arithmetic operations,
+    /// This implementation enables treating a `JobNumber` as if it were a [`u64`]
+    /// in arithmetic operations,
     /// comparisons, and other contexts where a reference to a [`u64`] is required.
     ///
     /// # Returns
@@ -187,7 +191,8 @@ impl std::ops::Deref for JobNumber {
 impl std::fmt::Display for JobNumber {
     /// Formats the `JobNumber` as a human-readable string.
     ///
-    /// The formatted string consists of the numeric value immediately followed by the suffix `"CL"`.
+    /// The formatted string consists of the numeric value
+    /// immediately followed by the suffix `"CL"`.
     ///
     /// # Arguments
     ///
@@ -213,7 +218,8 @@ impl std::fmt::Display for JobNumber {
 /// An error type representing failures encountered when parsing a string into a `JobNumber`.
 ///
 /// When converting a string to a `JobNumber`, the expected format is a valid unsigned integer
-/// immediately followed by the constant suffix `"CL"`. Any deviation from this format results in an error.
+/// immediately followed by the constant suffix `"CL"`.
+/// Any deviation from this format results in an error.
 ///
 /// # Error Variants
 ///
@@ -300,8 +306,10 @@ impl std::str::FromStr for JobNumber {
 
     /// Parses a string slice into a `JobNumber`.
     ///
-    /// The input must consist of a valid unsigned integer immediately followed by the suffix `"CL"`.
-    /// If the string does not conform to this format—either due to an invalid numeric part or a missing suffix—
+    /// The input must consist of a valid unsigned integer immediately
+    /// followed by the suffix `"CL"`.
+    /// If the string does not conform to this format—either due to an
+    /// invalid numeric part or a missing suffix—
     /// an appropriate error is returned.
     ///
     /// # Arguments
@@ -407,32 +415,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_job_number_new() {
+    fn job_number_new() {
         let job_number = JobNumber::new(42);
         assert_eq!(job_number.value(), 42);
     }
 
     #[test]
-    fn test_job_number_from() {
+    fn job_number_from() {
         let job_number = JobNumber::from(42);
         assert_eq!(job_number.value(), 42);
     }
 
     #[test]
-    fn test_job_number_into() {
+    fn job_number_into() {
         let job_number = JobNumber::new(42);
         let numeric_value: u64 = job_number.into();
         assert_eq!(numeric_value, 42);
     }
 
     #[test]
-    fn test_job_number_deref() {
+    fn job_number_deref() {
         let job_number = JobNumber::new(42);
         assert_eq!(*job_number, 42);
     }
 
     #[test]
-    fn test_job_number_display() {
+    fn job_number_display() {
         let job_number = JobNumber::new(42);
         assert_eq!(job_number.to_string(), "42CL");
 
@@ -444,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_job_number_error_display() {
+    fn parse_job_number_error_display() {
         let parse_int_error = "abc".parse::<u64>().unwrap_err();
         let error = ParseJobNumberError::from(parse_int_error.clone());
         assert_eq!(
@@ -457,7 +465,7 @@ mod tests {
     }
 
     #[test]
-    fn test_job_number_from_str_valid() {
+    fn job_number_from_str_valid() {
         let job_number: JobNumber = "42CL".parse().unwrap();
         assert_eq!(job_number.value(), 42);
 
@@ -469,7 +477,7 @@ mod tests {
     }
 
     #[test]
-    fn test_job_number_from_str_invalid() {
+    fn job_number_from_str_invalid() {
         let error = "42".parse::<JobNumber>().unwrap_err();
         assert!(matches!(error, ParseJobNumberError::MissingCLSufix));
 
@@ -481,7 +489,7 @@ mod tests {
     }
 
     #[test]
-    fn test_job_number_serde() {
+    fn job_number_serde() {
         let job_number = JobNumber::new(42);
         assert_eq!(serde_json::to_string(&job_number).unwrap(), "\"42CL\"");
 

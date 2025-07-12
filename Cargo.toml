@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["src/wkt", "src/xml_parser"]
+members = ["src/wkt", "src/xmlprs"]
