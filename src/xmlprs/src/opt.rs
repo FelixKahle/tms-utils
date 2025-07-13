@@ -169,8 +169,8 @@ impl Default for XmlMatchPolicy<fn(&str, &str) -> bool> {
 /// ```rust
 /// use xmlprs::opt::{XmlDeserializerOptions, XmlMatchPolicy};
 ///
-/// let element_match_policy: XmlMatchPolicy<fn(&str, &str) -> bool> = XmlMatchPolicy::strict();
-/// let attribute_match_policy: XmlMatchPolicy<fn(&str, &str) -> bool> = XmlMatchPolicy::case_insensitive();
+/// let element_match_policy = XmlMatchPolicy::strict();
+/// let attribute_match_policy = XmlMatchPolicy::case_insensitive();
 ///
 /// let options = XmlDeserializerOptions::new(element_match_policy, attribute_match_policy);
 /// assert!(options.element_match_policy().matches("Element", "Element"));
@@ -246,10 +246,11 @@ impl Default for XmlDeserializerOptions<fn(&str, &str) -> bool, fn(&str, &str) -
     fn default() -> Self {
         XmlDeserializerOptions {
             element_match_policy: XmlMatchPolicy::strict(),
-            attribute_match_policy: XmlMatchPolicy::case_insensitive(),
+            attribute_match_policy: XmlMatchPolicy::strict(),
         }
     }
 }
 
+/// Default options for the XML deserializer.
 type DefaultXmlDeserializerOptions =
     XmlDeserializerOptions<fn(&str, &str) -> bool, fn(&str, &str) -> bool>;
