@@ -159,10 +159,11 @@ impl Default for XmlMatchPolicy<fn(&str, &str) -> bool> {
 /// during deserialization. It uses `XmlMatchPolicy` to define the matching behavior
 /// for both elements and attributes.
 ///
-/// # Type Parameters
+/// # Note
 ///
-/// * `F1`: A function type for matching XML elements.
-/// * `F2`: A function type for matching XML attributes.
+/// Currently static functions are used for matching, but this could be extended
+/// to support more complex matching strategies in the future by leveraging dynamic
+/// dispatch or trait objects.
 ///
 /// # Example
 ///
@@ -176,20 +177,12 @@ impl Default for XmlMatchPolicy<fn(&str, &str) -> bool> {
 /// assert!(options.element_match_policy().matches("Element", "Element"));
 /// assert!(options.attribute_match_policy().matches("Attribute", "attribute"));
 /// ```
-pub struct XmlDeserializerOptions<F1, F2>
-where
-    F1: Fn(&str, &str) -> bool,
-    F2: Fn(&str, &str) -> bool,
-{
-    element_match_policy: XmlMatchPolicy<F1>,
-    attribute_match_policy: XmlMatchPolicy<F2>,
+pub struct XmlDeserializerOptions {
+    element_match_policy: XmlMatchPolicy<fn(&str, &str) -> bool>,
+    attribute_match_policy: XmlMatchPolicy<fn(&str, &str) -> bool>,
 }
 
-impl<F1, F2> XmlDeserializerOptions<F1, F2>
-where
-    F1: Fn(&str, &str) -> bool,
-    F2: Fn(&str, &str) -> bool,
-{
+impl XmlDeserializerOptions {
     /// Creates a new `XmlDeserializerOptions` with the specified match policies.
     ///
     /// # Arguments
@@ -214,8 +207,8 @@ where
     /// assert!(options.attribute_match_policy().matches("Attribute", "attribute"));
     ///
     pub fn new(
-        element_match_policy: XmlMatchPolicy<F1>,
-        attribute_match_policy: XmlMatchPolicy<F2>,
+        element_match_policy: XmlMatchPolicy<fn(&str, &str) -> bool>,
+        attribute_match_policy: XmlMatchPolicy<fn(&str, &str) -> bool>,
     ) -> Self {
         XmlDeserializerOptions {
             element_match_policy,
@@ -228,7 +221,7 @@ where
     /// # Returns
     ///
     /// A reference to the `XmlMatchPolicy` used for matching XML elements.
-    pub fn element_match_policy(&self) -> &XmlMatchPolicy<F1> {
+    pub fn element_match_policy(&self) -> &XmlMatchPolicy<fn(&str, &str) -> bool> {
         &self.element_match_policy
     }
 
@@ -237,12 +230,12 @@ where
     /// # Returns
     ///
     /// A reference to the `XmlMatchPolicy` used for matching XML attributes.
-    pub fn attribute_match_policy(&self) -> &XmlMatchPolicy<F2> {
+    pub fn attribute_match_policy(&self) -> &XmlMatchPolicy<fn(&str, &str) -> bool> {
         &self.attribute_match_policy
     }
 }
 
-impl Default for XmlDeserializerOptions<fn(&str, &str) -> bool, fn(&str, &str) -> bool> {
+impl Default for XmlDeserializerOptions {
     fn default() -> Self {
         XmlDeserializerOptions {
             element_match_policy: XmlMatchPolicy::strict(),
@@ -250,7 +243,3 @@ impl Default for XmlDeserializerOptions<fn(&str, &str) -> bool, fn(&str, &str) -
         }
     }
 }
-
-/// Default options for the XML deserializer.
-type DefaultXmlDeserializerOptions =
-    XmlDeserializerOptions<fn(&str, &str) -> bool, fn(&str, &str) -> bool>;
